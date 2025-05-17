@@ -1,8 +1,7 @@
-
 import { useState } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { Download, SliderHorizontal } from 'lucide-react';
+import { Download, SlidersHorizontal } from 'lucide-react';
 import { PageSize, ExportFormat } from '@/types/collage';
 import { toast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
@@ -125,7 +124,7 @@ export function ExportPanel({ collageRef, pageSize, isEnabled }: ExportPanelProp
             <span className="text-xs text-muted-foreground">DPI</span>
           </div>
           <div className="flex items-center gap-2 mt-2">
-            <SliderHorizontal className="h-4 w-4 text-muted-foreground" />
+            <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
             <input
               type="range"
               min="1"
