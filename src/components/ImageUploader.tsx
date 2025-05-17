@@ -1,16 +1,27 @@
 
 import { useRef, useState } from 'react';
-import { Plus, X, Image } from 'lucide-react';
+import { Plus, X, Image, Shuffle } from 'lucide-react';
 import { CollageImage } from '@/types/collage';
 import { toast } from '@/hooks/use-toast';
+import { Input } from './ui/input';
 
 interface ImageUploaderProps {
   onImagesAdded: (images: CollageImage[]) => void;
   images: CollageImage[];
   onImageRemove: (id: string) => void;
+  onUpdateCount?: (id: string, count: number) => void;
+  onRearrange?: () => void;
+  maxCells: number;
 }
 
-export function ImageUploader({ onImagesAdded, images, onImageRemove }: ImageUploaderProps) {
+export function ImageUploader({ 
+  onImagesAdded, 
+  images, 
+  onImageRemove, 
+  onUpdateCount, 
+  onRearrange,
+  maxCells
+}: ImageUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   
@@ -69,6 +80,16 @@ export function ImageUploader({ onImagesAdded, images, onImageRemove }: ImageUpl
     handleFileChange(e.dataTransfer.files);
   };
 
+  const handleCountChange = (id: string, value: string) => {
+    const count = parseInt(value);
+    if (!isNaN(count) && count >= 0 && onUpdateCount) {
+      onUpdateCount(id, count);
+    }
+  };
+
+  // Calculate total quantity of all images
+  const totalQuantity = images.reduce((sum, img) => sum + (img.count || 0), 0);
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-medium">Images</h2>
@@ -103,7 +124,7 @@ export function ImageUploader({ onImagesAdded, images, onImageRemove }: ImageUpl
       {images.length > 0 && (
         <div className="mt-4">
           <h3 className="text-sm font-medium mb-2">Uploaded Images</h3>
-          <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto p-1">
+          <div className="grid grid-cols-1 gap-2 max-h-52 overflow-y-auto p-1">
             {images.map(image => (
               <div 
                 key={image.id} 
@@ -116,10 +137,24 @@ export function ImageUploader({ onImagesAdded, images, onImageRemove }: ImageUpl
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="ml-2 overflow-hidden">
+                <div className="ml-2 overflow-hidden flex-grow">
                   <p className="text-xs truncate" title={image.name}>
                     {image.name}
                   </p>
+                  
+                  {images.length > 1 && (
+                    <div className="flex items-center mt-1">
+                      <span className="text-xs mr-2">Qty:</span>
+                      <Input
+                        type="number"
+                        value={image.count || 1}
+                        onChange={(e) => handleCountChange(image.id, e.target.value)}
+                        min="0"
+                        max={maxCells}
+                        className="h-6 w-16 text-xs py-0 px-1"
+                      />
+                    </div>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -134,6 +169,35 @@ export function ImageUploader({ onImagesAdded, images, onImageRemove }: ImageUpl
               </div>
             ))}
           </div>
+          
+          {images.length > 1 && (
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-muted-foreground">
+                  {totalQuantity} of {maxCells} cells filled
+                </span>
+                <button
+                  type="button"
+                  className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
+                    totalQuantity > maxCells 
+                      ? 'bg-red-100 text-red-600' 
+                      : 'bg-primary/10 text-primary hover:bg-primary/20'
+                  }`}
+                  onClick={onRearrange}
+                  disabled={totalQuantity === 0}
+                >
+                  <Shuffle className="h-3 w-3" />
+                  Rearrange
+                </button>
+              </div>
+              
+              {totalQuantity > maxCells && (
+                <p className="text-xs text-red-500 mt-1">
+                  Total quantity exceeds available cells. Some images will not be displayed.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
       

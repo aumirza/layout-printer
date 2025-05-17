@@ -30,11 +30,7 @@ function App() {
     }));
     
     // After changing page size, we need to reinitialize the cells
-    initializeCells(prev => ({
-      ...prev,
-      layout: prev.layout,
-      images: prev.images
-    }));
+    initializeCells();
     
     toast({ 
       title: "Page size updated",
@@ -72,7 +68,10 @@ function App() {
 
   const handleImagesAdded = (newImages: CollageImage[]) => {
     setCollageState(prev => {
-      const updatedImages = [...prev.images, ...newImages];
+      const updatedImages = [...prev.images, ...newImages.map(img => ({
+        ...img,
+        count: 1 // Initialize count to 1 for each image
+      }))];
       
       // If there's only one image, auto-fill all cells with that image
       if (prev.images.length === 0 && newImages.length === 1) {
@@ -143,6 +142,73 @@ function App() {
     });
   };
 
+  const updateImageCount = (imageId: string, count: number) => {
+    setCollageState(prev => {
+      const updatedImages = prev.images.map(img => 
+        img.id === imageId ? { ...img, count } : img
+      );
+      
+      return {
+        ...prev,
+        images: updatedImages
+      };
+    });
+  };
+
+  const rearrangeCollage = () => {
+    setCollageState(prev => {
+      const totalCells = prev.layout.rows * prev.layout.columns;
+      const cellsArray: CollageCell[] = [];
+      
+      // Create flat array of cells
+      const newCells: CollageCell[][] = Array(prev.layout.rows)
+        .fill(null)
+        .map((_, rowIndex) => 
+          Array(prev.layout.columns)
+            .fill(null)
+            .map((_, colIndex) => ({
+              id: `cell-${rowIndex}-${colIndex}`,
+              imageId: null
+            }))
+        );
+      
+      // Create an array of image IDs based on their counts
+      const imagePool: string[] = [];
+      prev.images.forEach(image => {
+        if (image.count && image.count > 0) {
+          // Add image ID to pool as many times as its count
+          for (let i = 0; i < Math.min(image.count, totalCells); i++) {
+            imagePool.push(image.id);
+          }
+        }
+      });
+      
+      // Limit the pool to total number of cells
+      const limitedPool = imagePool.slice(0, totalCells);
+      
+      // Fill cells with images from the pool
+      let poolIndex = 0;
+      for (let rowIndex = 0; rowIndex < prev.layout.rows; rowIndex++) {
+        for (let colIndex = 0; colIndex < prev.layout.columns; colIndex++) {
+          if (poolIndex < limitedPool.length) {
+            newCells[rowIndex][colIndex].imageId = limitedPool[poolIndex];
+            poolIndex++;
+          }
+        }
+      }
+      
+      toast({ 
+        title: "Collage rearranged", 
+        description: "Applied image quantities to the layout"
+      });
+      
+      return {
+        ...prev,
+        cells: newCells
+      };
+    });
+  };
+
   const initializeCells = useCallback(() => {
     setCollageState(prev => {
       const { layout } = prev;
@@ -204,6 +270,9 @@ function App() {
             onImagesAdded={handleImagesAdded} 
             images={collageState.images}
             onImageRemove={removeImage}
+            onUpdateCount={updateImageCount}
+            onRearrange={rearrangeCollage}
+            maxCells={collageState.layout.rows * collageState.layout.columns}
           />
           
           <ExportPanel 

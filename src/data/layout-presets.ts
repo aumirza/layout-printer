@@ -9,7 +9,7 @@ export const layoutPresets: LayoutPreset[] = [
     columns: 7, 
     cellWidth: 25.4, // 1 inch in mm
     cellHeight: 38.1, // 1.5 inch in mm
-    label: "1×1.5\" Label Grid (70 labels)"
+    label: "1×1.5\" Label Grid" 
   },
   { 
     id: "2x2", 
@@ -18,7 +18,7 @@ export const layoutPresets: LayoutPreset[] = [
     columns: 2, 
     cellWidth: 89, 
     cellHeight: 127, 
-    label: "2×2 Photo Grid (4 photos)" 
+    label: "2×2 Photo Grid" 
   },
   { 
     id: "3x3", 
@@ -27,7 +27,7 @@ export const layoutPresets: LayoutPreset[] = [
     columns: 3, 
     cellWidth: 65, 
     cellHeight: 89, 
-    label: "3×3 Photo Grid (9 photos)" 
+    label: "3×3 Photo Grid" 
   },
   { 
     id: "4x4", 
@@ -36,7 +36,7 @@ export const layoutPresets: LayoutPreset[] = [
     columns: 4, 
     cellWidth: 50, 
     cellHeight: 65, 
-    label: "4×4 Photo Grid (16 photos)" 
+    label: "4×4 Photo Grid" 
   },
   { 
     id: "2x3", 
@@ -45,7 +45,7 @@ export const layoutPresets: LayoutPreset[] = [
     columns: 3, 
     cellWidth: 76.2, // 3 inches in mm
     cellHeight: 127, // 5 inches in mm
-    label: "2×3 Photo Grid (6 photos)" 
+    label: "2×3 Photo Grid" 
   },
   { 
     id: "passport_photos", 
@@ -54,6 +54,6 @@ export const layoutPresets: LayoutPreset[] = [
     columns: 4, 
     cellWidth: 35, 
     cellHeight: 45, 
-    label: "Passport Photos (20 photos)" 
+    label: "Passport Photos" 
   }
 ];
