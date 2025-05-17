@@ -9,11 +9,10 @@ export interface PageSize {
 export interface LayoutPreset {
   id: string;
   name: string;
-  rows: number;
-  columns: number;
   cellWidth: number;  // in mm
   cellHeight: number; // in mm
   label: string;
+  margin: number;     // in mm
 }
 
 export interface CollageImage {
@@ -33,6 +32,8 @@ export interface CollageState {
   layout: LayoutPreset;
   images: CollageImage[];
   cells: CollageCell[][];
+  rows: number;
+  columns: number;
 }
 
 export type ExportFormat = 'png' | 'pdf';

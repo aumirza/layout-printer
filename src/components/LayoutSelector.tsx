@@ -15,7 +15,7 @@ export function LayoutSelector({ layouts, selectedLayout, onSelect }: LayoutSele
 
   return (
     <div className="space-y-2">
-      <h2 className="text-lg font-medium">Layout</h2>
+      <h2 className="text-lg font-medium">Photo Size</h2>
       
       <div className="relative">
         <button
@@ -61,8 +61,8 @@ export function LayoutSelector({ layouts, selectedLayout, onSelect }: LayoutSele
       </div>
       
       <div className="mt-2 text-sm text-muted-foreground">
-        <p>Grid size: {selectedLayout.columns}×{selectedLayout.rows} ({selectedLayout.columns * selectedLayout.rows} cells)</p>
-        <p>Cell size: {selectedLayout.cellWidth.toFixed(1)}×{selectedLayout.cellHeight.toFixed(1)}mm</p>
+        <p>Unit size: {selectedLayout.cellWidth.toFixed(1)}×{selectedLayout.cellHeight.toFixed(1)}mm</p>
+        <p>Margin: {selectedLayout.margin}mm</p>
       </div>
     </div>
   );

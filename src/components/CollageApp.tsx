@@ -22,6 +22,7 @@ export function CollageApp() {
   } = useCollage();
   
   const collageRef = useRef<HTMLDivElement>(null);
+  const maxCells = collageState.rows * collageState.columns;
 
   return (
     <div className="flex flex-col md:flex-row gap-6 w-full">
@@ -44,7 +45,7 @@ export function CollageApp() {
           onImageRemove={removeImage}
           onUpdateCount={updateImageCount}
           onRearrange={rearrangeCollage}
-          maxCells={collageState.layout.rows * collageState.layout.columns}
+          maxCells={maxCells}
         />
         
         <ExportPanel 

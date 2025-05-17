@@ -10,7 +10,7 @@ interface CollageCanvasProps {
 
 export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
   ({ collageState, onAssignImage }, ref) => {
-    const { pageSize, layout, cells, images } = collageState;
+    const { pageSize, layout, cells, images, rows, columns } = collageState;
     const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
     const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
     
@@ -23,6 +23,7 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
     const pxHeight = pageSize.height * scaleFactor;
     const cellPxWidth = layout.cellWidth * scaleFactor;
     const cellPxHeight = layout.cellHeight * scaleFactor;
+    const marginPx = layout.margin * scaleFactor;
     
     // Reset the selected image when the images change
     useEffect(() => {
@@ -61,6 +62,7 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
               height: `${pxHeight}px`,
               position: 'relative',
               overflow: 'hidden',
+              padding: `${marginPx}px`
             }}
           >
             {/* Render the grid of cells */}
@@ -80,8 +82,8 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
                     style={{
                       width: `${cellPxWidth}px`,
                       height: `${cellPxHeight}px`,
-                      left: `${colIndex * cellPxWidth}px`,
-                      top: `${rowIndex * cellPxHeight}px`,
+                      left: `${marginPx + (colIndex * cellPxWidth)}px`,
+                      top: `${marginPx + (rowIndex * cellPxHeight)}px`,
                     }}
                     onClick={() => handleCellClick(rowIndex, colIndex)}
                   >
@@ -140,8 +142,8 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
         
         <div className="text-center text-sm text-muted-foreground mt-2">
           <p>
-            {pageSize.label} - {layout.rows}×{layout.columns} grid
-            ({cells.flat().filter(cell => cell.imageId !== null).length} of {layout.rows * layout.columns} cells filled)
+            {pageSize.label} - {rows}×{columns} grid
+            ({cells.flat().filter(cell => cell.imageId !== null).length} of {rows * columns} cells filled)
           </p>
         </div>
       </div>
