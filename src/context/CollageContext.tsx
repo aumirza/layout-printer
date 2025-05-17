@@ -2,7 +2,13 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { pageSizes } from '@/data/page-sizes';
 import { layoutPresets } from '@/data/layout-presets';
-import { CollageState, CollageImage, CollageCell } from '@/types/collage';
+import { 
+  CollageState, 
+  CollageImage, 
+  CollageCell, 
+  ImageOrientation,
+  SpaceOptimization
+} from '@/types/collage';
 import { toast } from '@/hooks/use-toast';
 
 interface CollageContextType {
@@ -13,7 +19,10 @@ interface CollageContextType {
   assignImageToCell: (rowIndex: number, colIndex: number, imageId: string) => void;
   removeImage: (imageId: string) => void;
   updateImageCount: (imageId: string, count: number) => void;
+  updateImageSettings: (imageId: string, updates: Partial<CollageImage>) => void;
   rearrangeCollage: () => void;
+  setSpaceOptimization: (value: SpaceOptimization) => void;
+  toggleCuttingMarkers: (show: boolean) => void;
 }
 
 const CollageContext = createContext<CollageContextType | undefined>(undefined);
@@ -49,7 +58,9 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     images: [],
     cells: [],
     rows: initialGrid.rows,
-    columns: initialGrid.columns
+    columns: initialGrid.columns,
+    spaceOptimization: 'loose',
+    showCuttingMarkers: true
   });
 
   const updatePageSize = (pageSizeIndex: number) => {
@@ -103,7 +114,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
             .fill(null)
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
-              imageId: null
+              imageId: null,
+              orientation: 'auto'
             }))
         );
       
@@ -134,7 +146,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
         const updatedCells = prev.cells.map(row =>
           row.map(cell => ({
             ...cell,
-            imageId: newImages[0].id
+            imageId: newImages[0].id,
+            orientation: 'auto'
           }))
         );
         
@@ -160,9 +173,13 @@ export function CollageProvider({ children }: { children: ReactNode }) {
   const assignImageToCell = (rowIndex: number, colIndex: number, imageId: string) => {
     setCollageState(prev => {
       const newCells = [...prev.cells];
+      // Find the image to get its orientation
+      const image = prev.images.find(img => img.id === imageId);
+      
       newCells[rowIndex][colIndex] = {
         ...newCells[rowIndex][colIndex],
-        imageId
+        imageId,
+        orientation: image?.orientation || 'auto'
       };
       return {
         ...prev,
@@ -180,7 +197,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
       const updatedCells = prev.cells.map(row =>
         row.map(cell => 
           cell.imageId === imageId 
-            ? { ...cell, imageId: null } 
+            ? { ...cell, imageId: null, orientation: 'auto' } 
             : cell
         )
       );
@@ -211,6 +228,56 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const updateImageSettings = (imageId: string, updates: Partial<CollageImage>) => {
+    setCollageState(prev => {
+      // Update the image settings
+      const updatedImages = prev.images.map(img => 
+        img.id === imageId ? { ...img, ...updates } : img
+      );
+      
+      // If orientation was updated, also update cells using this image
+      if (updates.orientation) {
+        const updatedCells = prev.cells.map(row =>
+          row.map(cell => 
+            cell.imageId === imageId 
+              ? { ...cell, orientation: updates.orientation as ImageOrientation } 
+              : cell
+          )
+        );
+        
+        return {
+          ...prev,
+          images: updatedImages,
+          cells: updatedCells
+        };
+      }
+      
+      return {
+        ...prev,
+        images: updatedImages
+      };
+    });
+  };
+
+  const setSpaceOptimization = (value: SpaceOptimization) => {
+    setCollageState(prev => ({
+      ...prev,
+      spaceOptimization: value
+    }));
+    
+    toast({ 
+      title: "Layout mode updated", 
+      description: value === 'loose' ? "Using same orientation for all images" : "Mixed orientations for optimal space usage"
+    });
+  };
+
+  const toggleCuttingMarkers = (show: boolean) => {
+    setCollageState(prev => ({
+      ...prev,
+      showCuttingMarkers: show
+    }));
+  };
+
   const rearrangeCollage = () => {
     setCollageState(prev => {
       const totalCells = prev.rows * prev.columns;
@@ -223,20 +290,44 @@ export function CollageProvider({ children }: { children: ReactNode }) {
             .fill(null)
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
-              imageId: null
+              imageId: null,
+              orientation: 'auto'
             }))
         );
       
       // Create an array of image IDs based on their counts
-      const imagePool: string[] = [];
+      const imagePool: { id: string, orientation: ImageOrientation }[] = [];
       prev.images.forEach(image => {
         if (image.count && image.count > 0) {
           // Add image ID to pool as many times as its count
           for (let i = 0; i < Math.min(image.count, totalCells); i++) {
-            imagePool.push(image.id);
+            // For tight fit, alternate orientations based on cell shape if needed
+            let orientation: ImageOrientation = image.orientation || 'auto';
+            
+            // In tight fit mode, try to optimize space by adjusting orientation
+            if (prev.spaceOptimization === 'tight' && orientation === 'auto') {
+              // For some images use landscape, for others use portrait
+              // This helps maximize page utilization
+              if (i % 2 === 0) {
+                orientation = 'landscape';
+              } else {
+                orientation = 'portrait';
+              }
+            }
+            
+            imagePool.push({
+              id: image.id,
+              orientation
+            });
           }
         }
       });
+      
+      // Shuffle the image pool for a more random distribution
+      for (let i = imagePool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [imagePool[i], imagePool[j]] = [imagePool[j], imagePool[i]];
+      }
       
       // Limit the pool to total number of cells
       const limitedPool = imagePool.slice(0, totalCells);
@@ -246,7 +337,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
       for (let rowIndex = 0; rowIndex < prev.rows; rowIndex++) {
         for (let colIndex = 0; colIndex < prev.columns; colIndex++) {
           if (poolIndex < limitedPool.length) {
-            newCells[rowIndex][colIndex].imageId = limitedPool[poolIndex];
+            newCells[rowIndex][colIndex].imageId = limitedPool[poolIndex].id;
+            newCells[rowIndex][colIndex].orientation = limitedPool[poolIndex].orientation;
             poolIndex++;
           }
         }
@@ -283,7 +375,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
             .fill(null)
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
-              imageId: null
+              imageId: null,
+              orientation: 'auto'
             }))
         );
       
@@ -296,7 +389,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
           cells: newCells.map(row => 
             row.map(cell => ({
               ...cell,
-              imageId: prev.images[0].id
+              imageId: prev.images[0].id,
+              orientation: prev.images[0].orientation || 'auto'
             }))
           )
         };
@@ -325,7 +419,10 @@ export function CollageProvider({ children }: { children: ReactNode }) {
       assignImageToCell,
       removeImage,
       updateImageCount,
-      rearrangeCollage
+      updateImageSettings,
+      rearrangeCollage,
+      setSpaceOptimization,
+      toggleCuttingMarkers
     }}>
       {children}
     </CollageContext.Provider>

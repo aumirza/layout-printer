@@ -20,11 +20,18 @@ export interface CollageImage {
   src: string;
   name: string;
   count?: number;
+  fit?: ImageFitOption;
+  orientation?: ImageOrientation;
 }
+
+export type ImageFitOption = 'cover' | 'contain' | 'original';
+export type ImageOrientation = 'auto' | 'portrait' | 'landscape';
+export type SpaceOptimization = 'loose' | 'tight';
 
 export interface CollageCell {
   id: string;
   imageId: string | null;
+  orientation?: ImageOrientation;
 }
 
 export interface CollageState {
@@ -34,6 +41,8 @@ export interface CollageState {
   cells: CollageCell[][];
   rows: number;
   columns: number;
+  spaceOptimization: SpaceOptimization;
+  showCuttingMarkers: boolean;
 }
 
-export type ExportFormat = 'png' | 'pdf';
+export type ExportFormat = 'png' | 'pdf' | 'print';

@@ -18,7 +18,10 @@ export function CollageApp() {
     assignImageToCell,
     removeImage,
     updateImageCount,
-    rearrangeCollage 
+    updateImageSettings,
+    rearrangeCollage,
+    setSpaceOptimization,
+    toggleCuttingMarkers
   } = useCollage();
   
   const collageRef = useRef<HTMLDivElement>(null);
@@ -43,15 +46,20 @@ export function CollageApp() {
           onImagesAdded={handleImagesAdded} 
           images={collageState.images}
           onImageRemove={removeImage}
+          onUpdateImage={updateImageSettings}
           onUpdateCount={updateImageCount}
           onRearrange={rearrangeCollage}
           maxCells={maxCells}
+          spaceOptimization={collageState.spaceOptimization}
+          onSpaceOptimizationChange={setSpaceOptimization}
         />
         
         <ExportPanel 
           collageRef={collageRef}
           pageSize={collageState.pageSize}
           isEnabled={collageState.images.length > 0}
+          onToggleCuttingMarkers={toggleCuttingMarkers}
+          showCuttingMarkers={collageState.showCuttingMarkers}
         />
       </div>
       

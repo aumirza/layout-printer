@@ -1,7 +1,7 @@
 
 import { forwardRef, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { CollageState } from '@/types/collage';
+import { CollageState, ImageFitOption } from '@/types/collage';
 
 interface CollageCanvasProps {
   collageState: CollageState;
@@ -10,7 +10,7 @@ interface CollageCanvasProps {
 
 export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
   ({ collageState, onAssignImage }, ref) => {
-    const { pageSize, layout, cells, images, rows, columns } = collageState;
+    const { pageSize, layout, cells, images, rows, columns, showCuttingMarkers } = collageState;
     const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
     const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
     
@@ -51,6 +51,27 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
       setActiveCell(null);
     };
 
+    // Get object-fit style based on image fit option
+    const getObjectFitStyle = (imageId: string | null): ImageFitOption => {
+      if (!imageId) return 'cover';
+      const image = images.find(img => img.id === imageId);
+      return image?.fit || 'cover';
+    };
+
+    // Get image orientation class
+    const getOrientationStyle = (cell: CollageCell) => {
+      if (!cell.imageId) return '';
+      const image = images.find(img => img.id === cell.imageId);
+      const orientation = cell.orientation || image?.orientation || 'auto';
+      
+      if (orientation === 'portrait') {
+        return 'aspect-[3/4]';
+      } else if (orientation === 'landscape') {
+        return 'aspect-[4/3]';
+      }
+      return '';
+    };
+
     return (
       <div className="flex flex-col items-center">
         <div className="mb-4 relative">
@@ -70,14 +91,15 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
               row.map((cell, colIndex) => {
                 const hasImage = cell.imageId !== null;
                 const image = images.find(img => img.id === cell.imageId);
+                const objectFit = getObjectFitStyle(cell.imageId);
                 
                 return (
                   <div
                     key={cell.id}
                     className={cn(
-                      "absolute border cursor-pointer overflow-hidden",
+                      "absolute overflow-hidden",
                       !hasImage && "bg-muted/30",
-                      hasImage && "bg-cover bg-center"
+                      hasImage && "bg-center",
                     )}
                     style={{
                       width: `${cellPxWidth}px`,
@@ -87,15 +109,33 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
                     }}
                     onClick={() => handleCellClick(rowIndex, colIndex)}
                   >
-                    {hasImage && image && (
-                      <img
-                        src={image.src}
-                        alt={image.name}
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                    {!hasImage && (
-                      <div className="flex items-center justify-center h-full">
+                    {hasImage && image ? (
+                      <>
+                        <img
+                          src={image.src}
+                          alt={image.name}
+                          className={cn(
+                            "w-full h-full cursor-pointer",
+                            getOrientationStyle(cell),
+                            {
+                              "object-cover": objectFit === 'cover',
+                              "object-contain": objectFit === 'contain',
+                              "object-none": objectFit === 'original',
+                            }
+                          )}
+                          draggable={false}
+                        />
+                        {showCuttingMarkers && (
+                          <div className="absolute inset-0 pointer-events-none">
+                            <div className="absolute left-0 top-0 border-t-2 border-l-2 border-black/70 w-4 h-4"></div>
+                            <div className="absolute right-0 top-0 border-t-2 border-r-2 border-black/70 w-4 h-4"></div>
+                            <div className="absolute left-0 bottom-0 border-b-2 border-l-2 border-black/70 w-4 h-4"></div>
+                            <div className="absolute right-0 bottom-0 border-b-2 border-r-2 border-black/70 w-4 h-4"></div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-center h-full cursor-pointer">
                         <span className="text-xs text-muted-foreground">Empty</span>
                       </div>
                     )}

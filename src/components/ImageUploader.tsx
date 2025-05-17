@@ -1,26 +1,33 @@
 
 import { useRef, useState } from 'react';
 import { Plus, X, Image, Shuffle } from 'lucide-react';
-import { CollageImage } from '@/types/collage';
+import { CollageImage, ImageFitOption, ImageOrientation } from '@/types/collage';
 import { toast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
+import { ImageSettings } from './ImageSettings';
 
 interface ImageUploaderProps {
   onImagesAdded: (images: CollageImage[]) => void;
   images: CollageImage[];
   onImageRemove: (id: string) => void;
+  onUpdateImage: (id: string, updates: Partial<CollageImage>) => void;
   onUpdateCount?: (id: string, count: number) => void;
   onRearrange?: () => void;
   maxCells: number;
+  spaceOptimization: 'loose' | 'tight';
+  onSpaceOptimizationChange: (value: 'loose' | 'tight') => void;
 }
 
 export function ImageUploader({ 
   onImagesAdded, 
   images, 
   onImageRemove, 
+  onUpdateImage,
   onUpdateCount, 
   onRearrange,
-  maxCells
+  maxCells,
+  spaceOptimization,
+  onSpaceOptimizationChange
 }: ImageUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -53,7 +60,9 @@ export function ImageUploader({
           id: `image-${Date.now()}-${processed}`,
           src,
           name: file.name,
-          count: 1
+          count: 1,
+          fit: 'cover', // Default fit
+          orientation: 'auto' // Default orientation
         });
         
         processed++;
@@ -128,74 +137,100 @@ export function ImageUploader({
             {images.map(image => (
               <div 
                 key={image.id} 
-                className="flex items-center bg-white p-2 rounded border group relative"
+                className="flex flex-col bg-white p-2 rounded border group relative"
               >
-                <div className="w-10 h-10 bg-muted rounded overflow-hidden flex-shrink-0">
-                  <img 
-                    src={image.src} 
-                    alt={image.name} 
-                    className="w-full h-full object-cover"
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-muted rounded overflow-hidden flex-shrink-0">
+                    <img 
+                      src={image.src} 
+                      alt={image.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="ml-2 overflow-hidden flex-grow">
+                    <p className="text-xs truncate" title={image.name}>
+                      {image.name}
+                    </p>
+                    
+                    {images.length > 1 && (
+                      <div className="flex items-center mt-1">
+                        <span className="text-xs mr-2">Qty:</span>
+                        <Input
+                          type="number"
+                          value={image.count || 1}
+                          onChange={(e) => handleCountChange(image.id, e.target.value)}
+                          min="0"
+                          max={maxCells}
+                          className="h-6 w-16 text-xs py-0 px-1"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 p-1 rounded-full bg-white/80 hover:bg-red-50 text-red-500"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onImageRemove(image.id);
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+                
+                <div className="mt-2 pl-12">
+                  <ImageSettings
+                    image={image}
+                    onUpdate={onUpdateImage}
                   />
                 </div>
-                <div className="ml-2 overflow-hidden flex-grow">
-                  <p className="text-xs truncate" title={image.name}>
-                    {image.name}
-                  </p>
-                  
-                  {images.length > 1 && (
-                    <div className="flex items-center mt-1">
-                      <span className="text-xs mr-2">Qty:</span>
-                      <Input
-                        type="number"
-                        value={image.count || 1}
-                        onChange={(e) => handleCountChange(image.id, e.target.value)}
-                        min="0"
-                        max={maxCells}
-                        className="h-6 w-16 text-xs py-0 px-1"
-                      />
-                    </div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 p-1 rounded-full bg-white/80 hover:bg-red-50 text-red-500"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onImageRemove(image.id);
-                  }}
-                >
-                  <X className="h-3 w-3" />
-                </button>
               </div>
             ))}
           </div>
           
           {images.length > 1 && (
             <div className="mt-3">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs text-muted-foreground">
-                  {totalQuantity} of {maxCells} cells filled
-                </span>
-                <button
-                  type="button"
-                  className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
-                    totalQuantity > maxCells 
-                      ? 'bg-red-100 text-red-600' 
-                      : 'bg-primary/10 text-primary hover:bg-primary/20'
-                  }`}
-                  onClick={onRearrange}
-                  disabled={totalQuantity === 0}
-                >
-                  <Shuffle className="h-3 w-3" />
-                  Rearrange
-                </button>
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground">
+                    {totalQuantity} of {maxCells} cells filled
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-2 items-center">
+                    <span className="text-xs">Layout mode:</span>
+                    <select
+                      className="text-xs border rounded px-1 py-0.5"
+                      value={spaceOptimization}
+                      onChange={(e) => onSpaceOptimizationChange(e.target.value as 'loose' | 'tight')}
+                    >
+                      <option value="loose">Loose fit (same orientation)</option>
+                      <option value="tight">Tight fit (mixed orientation)</option>
+                    </select>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
+                      totalQuantity > maxCells 
+                        ? 'bg-red-100 text-red-600' 
+                        : 'bg-primary/10 text-primary hover:bg-primary/20'
+                    }`}
+                    onClick={onRearrange}
+                    disabled={totalQuantity === 0}
+                  >
+                    <Shuffle className="h-3 w-3" />
+                    Rearrange
+                  </button>
+                </div>
+                
+                {totalQuantity > maxCells && (
+                  <p className="text-xs text-red-500">
+                    Total quantity exceeds available cells. Some images will not be displayed.
+                  </p>
+                )}
               </div>
-              
-              {totalQuantity > maxCells && (
-                <p className="text-xs text-red-500 mt-1">
-                  Total quantity exceeds available cells. Some images will not be displayed.
-                </p>
-              )}
             </div>
           )}
         </div>
