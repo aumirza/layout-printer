@@ -143,7 +143,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const createCustomPageSize = (width: number, height: number) => {
+  const createCustomPageSizeImpl = (width: number, height: number) => {
     const customSize = createCustomPageSize(width, height);
     
     setCollageState(prev => {
@@ -216,7 +216,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const createCustomLayout = (cellWidth: number, cellHeight: number, margin: number) => {
+  const createCustomLayoutImpl = (cellWidth: number, cellHeight: number, margin: number) => {
     const customLayout = createCustomLayout(cellWidth, cellHeight, margin);
     
     setCollageState(prev => {
@@ -239,7 +239,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
               imageId: null,
-              orientation: 'auto'
+              orientation: 'auto' as ImageOrientation
             }))
         );
       
@@ -271,7 +271,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
           row.map(cell => ({
             ...cell,
             imageId: newImages[0].id,
-            orientation: 'auto'
+            orientation: 'auto' as ImageOrientation
           }))
         );
         
@@ -300,11 +300,15 @@ export function CollageProvider({ children }: { children: ReactNode }) {
       // Find the image to get its orientation
       const image = prev.images.find(img => img.id === imageId);
       
-      newCells[rowIndex][colIndex] = {
-        ...newCells[rowIndex][colIndex],
-        imageId,
-        orientation: image?.orientation || 'auto'
-      };
+      if (rowIndex >= 0 && rowIndex < newCells.length && 
+          colIndex >= 0 && colIndex < newCells[rowIndex].length) {
+        newCells[rowIndex][colIndex] = {
+          ...newCells[rowIndex][colIndex],
+          imageId,
+          orientation: image?.orientation || 'auto'
+        };
+      }
+      
       return {
         ...prev,
         cells: newCells
@@ -321,7 +325,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
       const updatedCells = prev.cells.map(row =>
         row.map(cell => 
           cell.imageId === imageId 
-            ? { ...cell, imageId: null, orientation: 'auto' } 
+            ? { ...cell, imageId: null, orientation: 'auto' as ImageOrientation } 
             : cell
         )
       );
@@ -404,7 +408,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
               imageId: null,
-              orientation: 'auto'
+              orientation: 'auto' as ImageOrientation
             }))
         );
       
@@ -441,7 +445,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
               imageId: null,
-              orientation: 'auto'
+              orientation: 'auto' as ImageOrientation
             }))
         );
       
@@ -475,7 +479,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
               imageId: null,
-              orientation: 'auto'
+              orientation: 'auto' as ImageOrientation
             }))
         );
       
@@ -624,7 +628,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
               imageId: null,
-              orientation: 'auto'
+              orientation: 'auto' as ImageOrientation
             }))
         );
       
@@ -675,8 +679,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
       resetCanvas,
       clearAll,
       setUnit,
-      createCustomPageSize,
-      createCustomLayout
+      createCustomPageSize: createCustomPageSizeImpl,
+      createCustomLayout: createCustomLayoutImpl
     }}>
       {children}
     </CollageContext.Provider>

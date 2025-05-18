@@ -3,10 +3,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { InitialSetupModal } from '@/components/InitialSetupModal';
 import { Button } from '@/components/ui/button';
+import { MoonIcon, SunIcon } from 'lucide-react';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function LandingPage() {
   const [setupModalOpen, setSetupModalOpen] = useState(false);
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   
   const handleSetupComplete = (settings: any) => {
     // Store settings in localStorage
@@ -17,6 +20,17 @@ export default function LandingPage() {
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted flex flex-col items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={toggleTheme}
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+        </Button>
+      </div>
+      
       <div className="max-w-3xl mx-auto text-center">
         <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
           Picture Perfect Photo Collage Maker
@@ -75,21 +89,15 @@ export default function LandingPage() {
         <Button 
           size="lg" 
           className="px-8 py-6 text-lg"
-          onClick={() => setSetupModalOpen(true)}
+          onClick={() => navigate('/editor')}
         >
-          Get Started
+          Continue to Playground
         </Button>
       </div>
       
       <footer className="mt-24 text-center text-muted-foreground text-sm">
         <p>&copy; {new Date().getFullYear()} Photo Collage Maker. All rights reserved.</p>
       </footer>
-      
-      <InitialSetupModal
-        open={setupModalOpen}
-        onClose={() => setSetupModalOpen(false)}
-        onApplySettings={handleSetupComplete}
-      />
     </div>
   );
 }
