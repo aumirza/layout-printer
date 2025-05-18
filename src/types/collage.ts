@@ -27,6 +27,7 @@ export interface CollageImage {
 export type ImageFitOption = 'cover' | 'contain' | 'original';
 export type ImageOrientation = 'auto' | 'portrait' | 'landscape';
 export type SpaceOptimization = 'loose' | 'tight';
+export type MeasurementUnit = 'mm' | 'cm' | 'in';
 
 export interface CollageCell {
   id: string;
@@ -43,6 +44,14 @@ export interface CollageState {
   columns: number;
   spaceOptimization: SpaceOptimization;
   showCuttingMarkers: boolean;
+  selectedUnit: MeasurementUnit;
 }
 
 export type ExportFormat = 'png' | 'pdf' | 'print';
+
+export interface LayoutCalculation {
+  rows: number;
+  columns: number;
+  orientation: ImageOrientation;
+  totalCells: number;
+}

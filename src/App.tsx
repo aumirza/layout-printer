@@ -1,18 +1,25 @@
 
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { PageLayout } from './components/PageLayout';
 import { CollageProvider } from './context/CollageContext';
-import { CollageApp } from './components/CollageApp';
 import { Toaster } from './components/toaster';
-import { pageSizes } from './data/page-sizes';
-import { layoutPresets } from './data/layout-presets';
+import Index from './pages/Index';
+import Editor from './pages/Editor';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
     <CollageProvider>
-      <PageLayout>
-        <CollageApp />
-        <Toaster />
-      </PageLayout>
+      <Router>
+        <PageLayout>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/editor" element={<Editor />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <Toaster />
+        </PageLayout>
+      </Router>
     </CollageProvider>
   );
 }

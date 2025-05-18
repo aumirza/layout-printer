@@ -1,19 +1,14 @@
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { Download, SlidersHorizontal, Printer, Maximize, Image as ImageIcon } from 'lucide-react';
-import { PageSize, ExportFormat } from '@/types/collage';
+import { Download, SlidersHorizontal, Printer, Image as ImageIcon, RefreshCw, Trash2 } from 'lucide-react';
+import { PageSize, ExportFormat, MeasurementUnit } from '@/types/collage';
 import { toast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from './ui/dropdown-menu';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
+import { UnitConverter } from '@/lib/unit-converter';
 
 interface ExportPanelProps {
   collageRef: React.RefObject<HTMLDivElement>;
@@ -21,6 +16,9 @@ interface ExportPanelProps {
   isEnabled: boolean;
   onToggleCuttingMarkers: (show: boolean) => void;
   showCuttingMarkers: boolean;
+  onResetCanvas: () => void;
+  onClearAll: () => void;
+  selectedUnit: MeasurementUnit;
 }
 
 export function ExportPanel({ 
@@ -28,11 +26,14 @@ export function ExportPanel({
   pageSize, 
   isEnabled, 
   onToggleCuttingMarkers,
-  showCuttingMarkers
+  showCuttingMarkers,
+  onResetCanvas,
+  onClearAll,
+  selectedUnit
 }: ExportPanelProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('png');
-  const [exportScale, setExportScale] = useState(3); // Increased default scale for better quality
+  const [exportScale, setExportScale] = useState(4); // Increased default scale for better quality
   const [customDpi, setCustomDpi] = useState(300); // Custom DPI value
   
   const handleExport = async () => {
@@ -54,7 +55,7 @@ export function ExportPanel({
         height: collageRef.current.offsetHeight,
         imageTimeout: 0, // No timeout for image loading
         allowTaint: true, // Allow tainted canvas
-        logging: false // Disable logging
+        logging: false, // Disable logging
       });
       
       if (exportFormat === 'png') {
@@ -159,12 +160,37 @@ export function ExportPanel({
     }
   };
 
+  // Format dimensions based on selected unit
+  const formatDimension = (value: number): string => {
+    return UnitConverter.formatDimension(value, selectedUnit);
+  };
+
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-medium">Export</h2>
+      <h2 className="text-lg font-medium">Export & Actions</h2>
       
       <div className="space-y-3">
-        <div>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            onClick={onResetCanvas}
+            className="flex items-center justify-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Reset Canvas
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={onClearAll}
+            className="flex items-center justify-center gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Clear All
+          </Button>
+        </div>
+        
+        <div className="pt-2">
           <p className="text-sm mb-2">Format</p>
           <div className="flex gap-3">
             <label className="flex items-center">
@@ -238,19 +264,15 @@ export function ExportPanel({
             <span className="text-xs w-8">{exportScale}x</span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Higher resolution may take longer to export
+            Page size: {formatDimension(pageSize.width)}×{formatDimension(pageSize.height)}
           </p>
         </div>
         
-        <button
-          type="button"
+        <Button
           disabled={isExporting || !isEnabled}
-          className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg ${
-            isEnabled
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'bg-muted text-muted-foreground cursor-not-allowed'
-          }`}
+          className="w-full flex items-center justify-center gap-2 py-2"
           onClick={handleExport}
+          variant={isEnabled ? "default" : "outline"}
         >
           {exportFormat === 'print' ? (
             <Printer className="h-4 w-4" />
@@ -265,7 +287,7 @@ export function ExportPanel({
                 : `Export as ${exportFormat.toUpperCase()}`
             }
           </span>
-        </button>
+        </Button>
         
         {!isEnabled && (
           <p className="text-xs text-muted-foreground text-center">

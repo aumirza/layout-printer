@@ -1,7 +1,8 @@
 
 import { forwardRef, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { CollageState, ImageFitOption } from '@/types/collage';
+import { CollageState, ImageFitOption, CollageCell } from '@/types/collage';
+import { UnitConverter } from '@/lib/unit-converter';
 
 interface CollageCanvasProps {
   collageState: CollageState;
@@ -10,7 +11,7 @@ interface CollageCanvasProps {
 
 export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
   ({ collageState, onAssignImage }, ref) => {
-    const { pageSize, layout, cells, images, rows, columns, showCuttingMarkers } = collageState;
+    const { pageSize, layout, cells, images, rows, columns, showCuttingMarkers, selectedUnit } = collageState;
     const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
     const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
     
@@ -58,18 +59,9 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
       return image?.fit || 'cover';
     };
 
-    // Get image orientation class
-    const getOrientationStyle = (cell: CollageCell) => {
-      if (!cell.imageId) return '';
-      const image = images.find(img => img.id === cell.imageId);
-      const orientation = cell.orientation || image?.orientation || 'auto';
-      
-      if (orientation === 'portrait') {
-        return 'aspect-[3/4]';
-      } else if (orientation === 'landscape') {
-        return 'aspect-[4/3]';
-      }
-      return '';
+    // Format dimensions according to selected unit
+    const formatDimension = (value: number): string => {
+      return UnitConverter.formatDimension(value, selectedUnit, 1);
     };
 
     return (
@@ -116,21 +108,24 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
                           alt={image.name}
                           className={cn(
                             "w-full h-full cursor-pointer",
-                            getOrientationStyle(cell),
                             {
                               "object-cover": objectFit === 'cover',
                               "object-contain": objectFit === 'contain',
                               "object-none": objectFit === 'original',
                             }
                           )}
+                          style={{
+                            objectPosition: "center",
+                          }}
                           draggable={false}
                         />
                         {showCuttingMarkers && (
                           <div className="absolute inset-0 pointer-events-none">
-                            <div className="absolute left-0 top-0 border-t-2 border-l-2 border-black/70 w-4 h-4"></div>
-                            <div className="absolute right-0 top-0 border-t-2 border-r-2 border-black/70 w-4 h-4"></div>
-                            <div className="absolute left-0 bottom-0 border-b-2 border-l-2 border-black/70 w-4 h-4"></div>
-                            <div className="absolute right-0 bottom-0 border-b-2 border-r-2 border-black/70 w-4 h-4"></div>
+                            {/* Use thin 2mm markers as requested */}
+                            <div className="absolute left-0 top-0 w-2 h-2 border-t-[1px] border-l-[1px] border-gray-400"></div>
+                            <div className="absolute right-0 top-0 w-2 h-2 border-t-[1px] border-r-[1px] border-gray-400"></div>
+                            <div className="absolute left-0 bottom-0 w-2 h-2 border-b-[1px] border-l-[1px] border-gray-400"></div>
+                            <div className="absolute right-0 bottom-0 w-2 h-2 border-b-[1px] border-r-[1px] border-gray-400"></div>
                           </div>
                         )}
                       </>
@@ -182,9 +177,10 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
         
         <div className="text-center text-sm text-muted-foreground mt-2">
           <p>
-            {pageSize.label} - {rows}×{columns} grid
+            {pageSize.label} - {formatDimension(pageSize.width)}×{formatDimension(pageSize.height)} 
             ({cells.flat().filter(cell => cell.imageId !== null).length} of {rows * columns} cells filled)
           </p>
+          <p className="text-xs mt-1">Photo size: {formatDimension(layout.cellWidth)}×{formatDimension(layout.cellHeight)}</p>
         </div>
       </div>
     );

@@ -4,10 +4,7 @@ import { CollageImage, ImageFitOption, ImageOrientation } from '@/types/collage'
 import { 
   Maximize, 
   Image as ImageIcon,
-  RotateCw, 
-  RotateCcw, 
-  FlipHorizontal, 
-  FlipVertical 
+  RotateCw
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -16,6 +13,7 @@ import {
   DropdownMenuItem 
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
+import { cn } from '@/lib/utils';
 
 interface ImageSettingsProps {
   image: CollageImage;
@@ -23,16 +21,17 @@ interface ImageSettingsProps {
 }
 
 export function ImageSettings({ image, onUpdate }: ImageSettingsProps) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isFitMenuOpen, setIsFitMenuOpen] = useState(false);
+  const [isOrientationMenuOpen, setIsOrientationMenuOpen] = useState(false);
 
   const handleFitChange = (fit: ImageFitOption) => {
     onUpdate(image.id, { fit });
-    setIsMenuOpen(false);
+    setIsFitMenuOpen(false);
   };
 
   const handleOrientationChange = (orientation: ImageOrientation) => {
     onUpdate(image.id, { orientation });
-    setIsMenuOpen(false);
+    setIsOrientationMenuOpen(false);
   };
 
   // Get the current fit mode label
@@ -57,9 +56,13 @@ export function ImageSettings({ image, onUpdate }: ImageSettingsProps) {
 
   return (
     <div className="flex gap-1">
-      <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+      <DropdownMenu open={isFitMenuOpen} onOpenChange={setIsFitMenuOpen}>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="h-6 text-xs flex gap-1 items-center">
+          <Button variant="outline" size="sm" className={cn(
+            "h-6 text-xs flex gap-1 items-center",
+            image.fit === 'contain' && "bg-blue-50 text-blue-600 border-blue-200",
+            image.fit === 'original' && "bg-amber-50 text-amber-600 border-amber-200"
+          )}>
             <Maximize className="h-3 w-3" />
             <span>{getFitLabel()}</span>
           </Button>
@@ -80,9 +83,13 @@ export function ImageSettings({ image, onUpdate }: ImageSettingsProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <DropdownMenu>
+      <DropdownMenu open={isOrientationMenuOpen} onOpenChange={setIsOrientationMenuOpen}>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="h-6 text-xs flex gap-1 items-center">
+          <Button variant="outline" size="sm" className={cn(
+            "h-6 text-xs flex gap-1 items-center",
+            image.orientation === 'portrait' && "bg-green-50 text-green-600 border-green-200",
+            image.orientation === 'landscape' && "bg-purple-50 text-purple-600 border-purple-200"
+          )}>
             <RotateCw className="h-3 w-3" />
             <span>{getOrientationLabel()}</span>
           </Button>
@@ -92,11 +99,15 @@ export function ImageSettings({ image, onUpdate }: ImageSettingsProps) {
             Auto
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleOrientationChange('portrait')}>
-            <RotateCcw className="h-4 w-4 mr-2" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="6" y="3" width="12" height="18" rx="2" />
+            </svg>
             Portrait
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleOrientationChange('landscape')}>
-            <RotateCw className="h-4 w-4 mr-2" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="6" width="18" height="12" rx="2" />
+            </svg>
             Landscape
           </DropdownMenuItem>
         </DropdownMenuContent>

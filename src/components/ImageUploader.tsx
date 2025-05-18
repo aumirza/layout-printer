@@ -1,9 +1,10 @@
 
 import { useRef, useState } from 'react';
-import { Plus, X, Image, Shuffle } from 'lucide-react';
+import { Plus, X, Image, Shuffle, DivideSquare } from 'lucide-react';
 import { CollageImage, ImageFitOption, ImageOrientation } from '@/types/collage';
 import { toast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
+import { Button } from './ui/button';
 import { ImageSettings } from './ImageSettings';
 
 interface ImageUploaderProps {
@@ -13,9 +14,8 @@ interface ImageUploaderProps {
   onUpdateImage: (id: string, updates: Partial<CollageImage>) => void;
   onUpdateCount?: (id: string, count: number) => void;
   onRearrange?: () => void;
+  onDistributeEqually?: () => void;
   maxCells: number;
-  spaceOptimization: 'loose' | 'tight';
-  onSpaceOptimizationChange: (value: 'loose' | 'tight') => void;
 }
 
 export function ImageUploader({ 
@@ -25,9 +25,8 @@ export function ImageUploader({
   onUpdateImage,
   onUpdateCount, 
   onRearrange,
-  maxCells,
-  spaceOptimization,
-  onSpaceOptimizationChange
+  onDistributeEqually,
+  maxCells
 }: ImageUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -91,6 +90,7 @@ export function ImageUploader({
 
   const handleCountChange = (id: string, value: string) => {
     const count = parseInt(value);
+    // Allow zero or positive numbers
     if (!isNaN(count) && count >= 0 && onUpdateCount) {
       onUpdateCount(id, count);
     }
@@ -131,9 +131,9 @@ export function ImageUploader({
       </div>
       
       {images.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-sm font-medium mb-2">Uploaded Images</h3>
-          <div className="grid grid-cols-1 gap-2 max-h-52 overflow-y-auto p-1">
+        <div className="mt-4 space-y-4">
+          <h3 className="text-sm font-medium">Uploaded Images</h3>
+          <div className="max-h-52 overflow-y-auto space-y-2 p-1">
             {images.map(image => (
               <div 
                 key={image.id} 
@@ -152,19 +152,17 @@ export function ImageUploader({
                       {image.name}
                     </p>
                     
-                    {images.length > 1 && (
-                      <div className="flex items-center mt-1">
-                        <span className="text-xs mr-2">Qty:</span>
-                        <Input
-                          type="number"
-                          value={image.count || 1}
-                          onChange={(e) => handleCountChange(image.id, e.target.value)}
-                          min="0"
-                          max={maxCells}
-                          className="h-6 w-16 text-xs py-0 px-1"
-                        />
-                      </div>
-                    )}
+                    <div className="flex items-center mt-1">
+                      <span className="text-xs mr-2">Qty:</span>
+                      <Input
+                        type="number"
+                        value={image.count || 0}
+                        onChange={(e) => handleCountChange(image.id, e.target.value)}
+                        min="0"
+                        max={maxCells}
+                        className="h-6 w-16 text-xs py-0 px-1"
+                      />
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -188,51 +186,47 @@ export function ImageUploader({
             ))}
           </div>
           
-          {images.length > 1 && (
-            <div className="mt-3">
-              <div className="flex flex-col gap-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">
-                    {totalQuantity} of {maxCells} cells filled
-                  </span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <div className="flex gap-2 items-center">
-                    <span className="text-xs">Layout mode:</span>
-                    <select
-                      className="text-xs border rounded px-1 py-0.5"
-                      value={spaceOptimization}
-                      onChange={(e) => onSpaceOptimizationChange(e.target.value as 'loose' | 'tight')}
-                    >
-                      <option value="loose">Loose fit (same orientation)</option>
-                      <option value="tight">Tight fit (mixed orientation)</option>
-                    </select>
-                  </div>
-                  
-                  <button
-                    type="button"
-                    className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
-                      totalQuantity > maxCells 
-                        ? 'bg-red-100 text-red-600' 
-                        : 'bg-primary/10 text-primary hover:bg-primary/20'
-                    }`}
-                    onClick={onRearrange}
-                    disabled={totalQuantity === 0}
-                  >
-                    <Shuffle className="h-3 w-3" />
-                    Rearrange
-                  </button>
-                </div>
-                
-                {totalQuantity > maxCells && (
-                  <p className="text-xs text-red-500">
-                    Total quantity exceeds available cells. Some images will not be displayed.
-                  </p>
-                )}
-              </div>
+          <div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">
+                {totalQuantity} of {maxCells} cells will be filled
+              </span>
             </div>
-          )}
+            
+            <div className="flex gap-2 mt-3">
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 flex items-center justify-center gap-1"
+                onClick={onDistributeEqually}
+                disabled={images.length === 0}
+              >
+                <DivideSquare className="h-3.5 w-3.5" />
+                Distribute Equally
+              </Button>
+              
+              <Button
+                size="sm"
+                variant="outline"
+                className={`flex-1 flex items-center justify-center gap-1 ${
+                  totalQuantity > maxCells 
+                    ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                    : ''
+                }`}
+                onClick={onRearrange}
+                disabled={totalQuantity === 0}
+              >
+                <Shuffle className="h-3.5 w-3.5" />
+                Arrange
+              </Button>
+            </div>
+            
+            {totalQuantity > maxCells && (
+              <p className="text-xs text-red-500 mt-2">
+                Total quantity exceeds available cells. Some images will not be displayed.
+              </p>
+            )}
+          </div>
         </div>
       )}
       

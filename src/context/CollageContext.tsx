@@ -1,13 +1,16 @@
-
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { pageSizes } from '@/data/page-sizes';
-import { layoutPresets } from '@/data/layout-presets';
+import { pageSizes, createCustomPageSize } from '@/data/page-sizes';
+import { layoutPresets, createCustomLayout } from '@/data/layout-presets';
 import { 
   CollageState, 
   CollageImage, 
   CollageCell, 
   ImageOrientation,
-  SpaceOptimization
+  SpaceOptimization,
+  MeasurementUnit,
+  LayoutCalculation,
+  PageSize,
+  LayoutPreset
 } from '@/types/collage';
 import { toast } from '@/hooks/use-toast';
 
@@ -21,23 +24,67 @@ interface CollageContextType {
   updateImageCount: (imageId: string, count: number) => void;
   updateImageSettings: (imageId: string, updates: Partial<CollageImage>) => void;
   rearrangeCollage: () => void;
+  distributeEqually: () => void;
   setSpaceOptimization: (value: SpaceOptimization) => void;
   toggleCuttingMarkers: (show: boolean) => void;
+  resetCanvas: () => void;
+  clearAll: () => void;
+  setUnit: (unit: MeasurementUnit) => void;
+  createCustomPageSize: (width: number, height: number) => void;
+  createCustomLayout: (cellWidth: number, cellHeight: number, margin: number) => void;
 }
 
 const CollageContext = createContext<CollageContextType | undefined>(undefined);
 
 // Helper function to calculate the maximum number of cells that can fit on a page
-function calculateGridDimensions(pageWidth: number, pageHeight: number, cellWidth: number, cellHeight: number, margin: number) {
+function calculateGridDimensions(
+  pageWidth: number,
+  pageHeight: number,
+  cellWidth: number,
+  cellHeight: number,
+  margin: number,
+  spaceOptimization: SpaceOptimization
+): LayoutCalculation {
   // Calculate usable area by removing margins from all sides
   const usableWidth = pageWidth - (margin * 2);
   const usableHeight = pageHeight - (margin * 2);
   
-  // Calculate how many cells can fit in each dimension
-  const columns = Math.floor(usableWidth / cellWidth);
-  const rows = Math.floor(usableHeight / cellHeight);
+  // Calculate portrait orientation (cellWidth x cellHeight)
+  const portraitColumns = Math.floor(usableWidth / cellWidth);
+  const portraitRows = Math.floor(usableHeight / cellHeight);
+  const portraitTotal = portraitColumns * portraitRows;
   
-  return { rows, columns };
+  // For loose fit, we only use one orientation
+  if (spaceOptimization === 'loose') {
+    return {
+      rows: portraitRows,
+      columns: portraitColumns,
+      orientation: 'portrait',
+      totalCells: portraitTotal
+    };
+  }
+  
+  // For tight fit, try both orientations to see which gives more cells
+  // Calculate landscape orientation (cellHeight x cellWidth) - swapping dimensions
+  const landscapeColumns = Math.floor(usableWidth / cellHeight);
+  const landscapeRows = Math.floor(usableHeight / cellWidth);
+  const landscapeTotal = landscapeColumns * landscapeRows;
+  
+  if (landscapeTotal > portraitTotal) {
+    return {
+      rows: landscapeRows,
+      columns: landscapeColumns,
+      orientation: 'landscape',
+      totalCells: landscapeTotal
+    };
+  }
+  
+  return {
+    rows: portraitRows,
+    columns: portraitColumns,
+    orientation: 'portrait',
+    totalCells: portraitTotal
+  };
 }
 
 export function CollageProvider({ children }: { children: ReactNode }) {
@@ -49,7 +96,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     initialPageSize.height,
     initialLayout.cellWidth,
     initialLayout.cellHeight,
-    initialLayout.margin
+    initialLayout.margin,
+    'loose'
   );
 
   const [collageState, setCollageState] = useState<CollageState>({
@@ -60,7 +108,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     rows: initialGrid.rows,
     columns: initialGrid.columns,
     spaceOptimization: 'loose',
-    showCuttingMarkers: true
+    showCuttingMarkers: true,
+    selectedUnit: 'mm'
   });
 
   const updatePageSize = (pageSizeIndex: number) => {
@@ -68,19 +117,20 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     
     setCollageState(prev => {
       // Recalculate grid dimensions based on new page size
-      const { rows, columns } = calculateGridDimensions(
+      const layout = calculateGridDimensions(
         newPageSize.width,
         newPageSize.height,
         prev.layout.cellWidth,
         prev.layout.cellHeight,
-        prev.layout.margin
+        prev.layout.margin,
+        prev.spaceOptimization
       );
       
       return {
         ...prev,
         pageSize: newPageSize,
-        rows,
-        columns
+        rows: layout.rows,
+        columns: layout.columns
       };
     });
     
@@ -93,24 +143,56 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const createCustomPageSize = (width: number, height: number) => {
+    const customSize = createCustomPageSize(width, height);
+    
+    setCollageState(prev => {
+      // Recalculate grid dimensions based on custom page size
+      const layout = calculateGridDimensions(
+        width,
+        height,
+        prev.layout.cellWidth,
+        prev.layout.cellHeight,
+        prev.layout.margin,
+        prev.spaceOptimization
+      );
+      
+      return {
+        ...prev,
+        pageSize: customSize,
+        rows: layout.rows,
+        columns: layout.columns
+      };
+    });
+    
+    // After changing page size, we need to reinitialize the cells
+    initializeCells();
+    
+    toast({ 
+      title: "Custom page size created",
+      description: `Size set to ${width}×${height}mm`
+    });
+  };
+
   const updateLayout = (layoutIndex: number) => {
     const newLayout = layoutPresets[layoutIndex];
     
     setCollageState(prev => {
       // Calculate new grid dimensions based on the selected layout
-      const { rows, columns } = calculateGridDimensions(
+      const layout = calculateGridDimensions(
         prev.pageSize.width,
         prev.pageSize.height,
         newLayout.cellWidth,
         newLayout.cellHeight,
-        newLayout.margin
+        newLayout.margin,
+        prev.spaceOptimization
       );
       
       // Create a new cells grid based on the calculated dimensions
-      const newCells: CollageCell[][] = Array(rows)
+      const newCells: CollageCell[][] = Array(layout.rows)
         .fill(null)
         .map((_, rowIndex) => 
-          Array(columns)
+          Array(layout.columns)
             .fill(null)
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
@@ -122,8 +204,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
       return {
         ...prev,
         layout: newLayout,
-        rows,
-        columns,
+        rows: layout.rows,
+        columns: layout.columns,
         cells: newCells
       };
     });
@@ -131,6 +213,48 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     toast({ 
       title: "Layout updated", 
       description: `Changed to ${newLayout.label}`
+    });
+  };
+
+  const createCustomLayout = (cellWidth: number, cellHeight: number, margin: number) => {
+    const customLayout = createCustomLayout(cellWidth, cellHeight, margin);
+    
+    setCollageState(prev => {
+      // Calculate new grid dimensions based on the custom layout
+      const layout = calculateGridDimensions(
+        prev.pageSize.width,
+        prev.pageSize.height,
+        cellWidth,
+        cellHeight,
+        margin,
+        prev.spaceOptimization
+      );
+      
+      // Create a new cells grid based on the calculated dimensions
+      const newCells: CollageCell[][] = Array(layout.rows)
+        .fill(null)
+        .map((_, rowIndex) => 
+          Array(layout.columns)
+            .fill(null)
+            .map((_, colIndex) => ({
+              id: `cell-${rowIndex}-${colIndex}`,
+              imageId: null,
+              orientation: 'auto'
+            }))
+        );
+      
+      return {
+        ...prev,
+        layout: customLayout,
+        rows: layout.rows,
+        columns: layout.columns,
+        cells: newCells
+      };
+    });
+    
+    toast({ 
+      title: "Custom layout created", 
+      description: `Photo size set to ${cellWidth}×${cellHeight}mm with ${margin}mm margin`
     });
   };
 
@@ -260,10 +384,38 @@ export function CollageProvider({ children }: { children: ReactNode }) {
   };
 
   const setSpaceOptimization = (value: SpaceOptimization) => {
-    setCollageState(prev => ({
-      ...prev,
-      spaceOptimization: value
-    }));
+    setCollageState(prev => {
+      // Recalculate grid dimensions using the new optimization setting
+      const layout = calculateGridDimensions(
+        prev.pageSize.width,
+        prev.pageSize.height,
+        prev.layout.cellWidth,
+        prev.layout.cellHeight,
+        prev.layout.margin,
+        value
+      );
+      
+      // Create a new cells grid based on the calculated dimensions
+      const newCells: CollageCell[][] = Array(layout.rows)
+        .fill(null)
+        .map((_, rowIndex) => 
+          Array(layout.columns)
+            .fill(null)
+            .map((_, colIndex) => ({
+              id: `cell-${rowIndex}-${colIndex}`,
+              imageId: null,
+              orientation: 'auto'
+            }))
+        );
+      
+      return {
+        ...prev,
+        spaceOptimization: value,
+        rows: layout.rows,
+        columns: layout.columns,
+        cells: newCells
+      };
+    });
     
     toast({ 
       title: "Layout mode updated", 
@@ -276,6 +428,116 @@ export function CollageProvider({ children }: { children: ReactNode }) {
       ...prev,
       showCuttingMarkers: show
     }));
+  };
+
+  const resetCanvas = () => {
+    setCollageState(prev => {
+      // Keep the images but reset all cells
+      const newCells: CollageCell[][] = Array(prev.rows)
+        .fill(null)
+        .map((_, rowIndex) => 
+          Array(prev.columns)
+            .fill(null)
+            .map((_, colIndex) => ({
+              id: `cell-${rowIndex}-${colIndex}`,
+              imageId: null,
+              orientation: 'auto'
+            }))
+        );
+      
+      // Also reset all image counts to zero
+      const resetImages = prev.images.map(img => ({
+        ...img,
+        count: 0
+      }));
+      
+      return {
+        ...prev,
+        cells: newCells,
+        images: resetImages
+      };
+    });
+    
+    toast({ 
+      title: "Canvas reset", 
+      description: "All photos removed from canvas"
+    });
+  };
+
+  const clearAll = () => {
+    setCollageState(prev => {
+      // Reset everything
+      const newCells: CollageCell[][] = Array(prev.rows)
+        .fill(null)
+        .map((_, rowIndex) => 
+          Array(prev.columns)
+            .fill(null)
+            .map((_, colIndex) => ({
+              id: `cell-${rowIndex}-${colIndex}`,
+              imageId: null,
+              orientation: 'auto'
+            }))
+        );
+      
+      return {
+        ...prev,
+        cells: newCells,
+        images: []
+      };
+    });
+    
+    toast({ 
+      title: "All cleared", 
+      description: "All photos removed from project"
+    });
+  };
+
+  const setUnit = (unit: MeasurementUnit) => {
+    setCollageState(prev => ({
+      ...prev,
+      selectedUnit: unit
+    }));
+  };
+
+  const distributeEqually = () => {
+    setCollageState(prev => {
+      const totalCells = prev.rows * prev.columns;
+      const activeImages = prev.images.filter(img => img.count !== 0);
+      
+      // If no images, do nothing
+      if (activeImages.length === 0) {
+        toast({
+          title: "No images to distribute",
+          description: "Add images first"
+        });
+        return prev;
+      }
+      
+      // Calculate cells per image
+      const cellsPerImage = Math.floor(totalCells / activeImages.length);
+      const remainder = totalCells % activeImages.length;
+      
+      // Update image counts
+      const updatedImages = prev.images.map((img, index) => {
+        if (img.count === 0) return img;
+        // Distribute remainder to first few images
+        const extraCell = index < remainder ? 1 : 0;
+        return {
+          ...img,
+          count: cellsPerImage + extraCell
+        };
+      });
+      
+      toast({ 
+        title: "Distributed equally", 
+        description: `${cellsPerImage} cells per image (${totalCells} total)`
+      });
+      
+      return {
+        ...prev,
+        images: updatedImages
+      };
+    });
   };
 
   const rearrangeCollage = () => {
@@ -291,28 +553,22 @@ export function CollageProvider({ children }: { children: ReactNode }) {
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
               imageId: null,
-              orientation: 'auto'
+              orientation: prev.spaceOptimization === 'tight' && colIndex % 2 === 0 ? 'landscape' : 'portrait'
             }))
         );
       
-      // Create an array of image IDs based on their counts
+      // Collect all images with their counts
       const imagePool: { id: string, orientation: ImageOrientation }[] = [];
       prev.images.forEach(image => {
         if (image.count && image.count > 0) {
-          // Add image ID to pool as many times as its count
+          // Add image to the pool based on its count
           for (let i = 0; i < Math.min(image.count, totalCells); i++) {
-            // For tight fit, alternate orientations based on cell shape if needed
             let orientation: ImageOrientation = image.orientation || 'auto';
             
-            // In tight fit mode, try to optimize space by adjusting orientation
+            // In tight fit mode, optimize space if auto orientation
             if (prev.spaceOptimization === 'tight' && orientation === 'auto') {
-              // For some images use landscape, for others use portrait
-              // This helps maximize page utilization
-              if (i % 2 === 0) {
-                orientation = 'landscape';
-              } else {
-                orientation = 'portrait';
-              }
+              // Alternate orientations
+              orientation = i % 2 === 0 ? 'portrait' : 'landscape';
             }
             
             imagePool.push({
@@ -323,29 +579,20 @@ export function CollageProvider({ children }: { children: ReactNode }) {
         }
       });
       
-      // Shuffle the image pool for a more random distribution
-      for (let i = imagePool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [imagePool[i], imagePool[j]] = [imagePool[j], imagePool[i]];
-      }
-      
-      // Limit the pool to total number of cells
-      const limitedPool = imagePool.slice(0, totalCells);
-      
-      // Fill cells with images from the pool
+      // Fill cells with images SEQUENTIALLY (no shuffling)
       let poolIndex = 0;
       for (let rowIndex = 0; rowIndex < prev.rows; rowIndex++) {
         for (let colIndex = 0; colIndex < prev.columns; colIndex++) {
-          if (poolIndex < limitedPool.length) {
-            newCells[rowIndex][colIndex].imageId = limitedPool[poolIndex].id;
-            newCells[rowIndex][colIndex].orientation = limitedPool[poolIndex].orientation;
+          if (poolIndex < imagePool.length) {
+            newCells[rowIndex][colIndex].imageId = imagePool[poolIndex].id;
+            newCells[rowIndex][colIndex].orientation = imagePool[poolIndex].orientation;
             poolIndex++;
           }
         }
       }
       
       toast({ 
-        title: "Collage rearranged", 
+        title: "Collage arranged", 
         description: `Applied image quantities to the layout (${poolIndex} of ${totalCells} cells filled)`
       });
       
@@ -359,19 +606,20 @@ export function CollageProvider({ children }: { children: ReactNode }) {
   const initializeCells = useCallback(() => {
     setCollageState(prev => {
       // Calculate grid dimensions
-      const { rows, columns } = calculateGridDimensions(
+      const layout = calculateGridDimensions(
         prev.pageSize.width,
         prev.pageSize.height,
         prev.layout.cellWidth,
         prev.layout.cellHeight,
-        prev.layout.margin
+        prev.layout.margin,
+        prev.spaceOptimization
       );
       
       // Create a new cells grid
-      const newCells: CollageCell[][] = Array(rows)
+      const newCells: CollageCell[][] = Array(layout.rows)
         .fill(null)
         .map((_, rowIndex) => 
-          Array(columns)
+          Array(layout.columns)
             .fill(null)
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
@@ -384,8 +632,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
       if (prev.images.length === 1) {
         return {
           ...prev,
-          rows,
-          columns,
+          rows: layout.rows,
+          columns: layout.columns,
           cells: newCells.map(row => 
             row.map(cell => ({
               ...cell,
@@ -398,8 +646,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
       
       return {
         ...prev,
-        rows,
-        columns,
+        rows: layout.rows,
+        columns: layout.columns,
         cells: newCells
       };
     });
@@ -421,8 +669,14 @@ export function CollageProvider({ children }: { children: ReactNode }) {
       updateImageCount,
       updateImageSettings,
       rearrangeCollage,
+      distributeEqually,
       setSpaceOptimization,
-      toggleCuttingMarkers
+      toggleCuttingMarkers,
+      resetCanvas,
+      clearAll,
+      setUnit,
+      createCustomPageSize,
+      createCustomLayout
     }}>
       {children}
     </CollageContext.Provider>
