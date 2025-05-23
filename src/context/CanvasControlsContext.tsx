@@ -10,6 +10,7 @@ interface CanvasControlsContextType {
   handleZoomIn: () => void;
   handleZoomOut: () => void;
   handleResetZoom: () => void;
+  handleFitToContainer: () => void;
   handleMouseDown: (e: React.MouseEvent) => void;
   handleMouseMove: (e: React.MouseEvent) => void;
   handleMouseUp: () => void;

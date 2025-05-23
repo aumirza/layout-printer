@@ -1,10 +1,21 @@
 import { Button } from "./ui/button";
-import { ZoomIn, ZoomOut, RotateCcw, MoveHorizontal } from "lucide-react";
+import {
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  MoveHorizontal,
+  Maximize2,
+} from "lucide-react";
 import { useCanvasControlsContext } from "@/context/CanvasControlsContext";
 
 export function CanvasControls() {
-  const { zoom, handleZoomIn, handleZoomOut, handleResetZoom } =
-    useCanvasControlsContext();
+  const {
+    zoom,
+    handleZoomIn,
+    handleZoomOut,
+    handleResetZoom,
+    handleFitToContainer,
+  } = useCanvasControlsContext();
   return (
     <div className="border-b bg-background p-2 flex justify-between">
       <div className="flex items-center space-x-2">
@@ -28,11 +39,19 @@ export function CanvasControls() {
           variant="outline"
           size="icon"
           onClick={handleResetZoom}
-          title="Reset Zoom"
+          title="Reset Zoom to 100%"
         >
           <RotateCcw className="h-4 w-4" />
         </Button>
-        <div className="text-sm">{zoom}%</div>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleFitToContainer}
+          title="Fit to Container"
+        >
+          <Maximize2 className="h-4 w-4" />
+        </Button>
+        <div className="text-sm">{zoom.toFixed(0)}%</div>
       </div>
 
       <div className="flex items-center">
