@@ -1,18 +1,17 @@
-
 export interface PageSize {
   name: string;
-  width: number;   // in mm
-  height: number;  // in mm
+  width: number; // in mm
+  height: number; // in mm
   label: string;
 }
 
 export interface LayoutPreset {
   id: string;
   name: string;
-  cellWidth: number;  // in mm
+  cellWidth: number; // in mm
   cellHeight: number; // in mm
   label: string;
-  margin: number;     // in mm
+  margin: number; // in mm
 }
 
 export interface CollageImage {
@@ -24,10 +23,10 @@ export interface CollageImage {
   orientation?: ImageOrientation;
 }
 
-export type ImageFitOption = 'cover' | 'contain' | 'original';
-export type ImageOrientation = 'auto' | 'portrait' | 'landscape';
-export type SpaceOptimization = 'loose' | 'tight';
-export type MeasurementUnit = 'mm' | 'cm' | 'in';
+export type ImageFitOption = "cover" | "contain" | "fill" | "original";
+export type ImageOrientation = "auto" | "portrait" | "landscape";
+export type SpaceOptimization = "loose" | "tight";
+export type MeasurementUnit = "mm" | "cm" | "in";
 
 export interface CollageCell {
   id: string;
@@ -47,7 +46,7 @@ export interface CollageState {
   selectedUnit: MeasurementUnit;
 }
 
-export type ExportFormat = 'png' | 'pdf' | 'print';
+export type ExportFormat = "png" | "pdf" | "print";
 
 export interface LayoutCalculation {
   rows: number;

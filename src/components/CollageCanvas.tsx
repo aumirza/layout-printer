@@ -26,16 +26,18 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
     } | null>(null);
     const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
 
-    // Calculate the scale factor to fit the page on the screen
-    const maxWidth = 800; // Maximum width in pixels
-    const scaleFactor = Math.min(1, maxWidth / pageSize.width);
-
-    // Convert mm to pixels using the scale factor
-    const pxWidth = pageSize.width * scaleFactor;
-    const pxHeight = pageSize.height * scaleFactor;
-    const cellPxWidth = layout.cellWidth * scaleFactor;
-    const cellPxHeight = layout.cellHeight * scaleFactor;
-    const marginPx = layout.margin * scaleFactor;
+    // Calculate actual screen DPI (default to 96 DPI if not available)
+    const dpi = window.devicePixelRatio * 96;
+    
+    // Convert mm to pixels using screen DPI (1 inch = 25.4mm)
+    const mmToPixels = (mm: number) => (mm / 25.4) * dpi;
+    
+    // Convert mm to pixels using actual screen dimensions
+    const pxWidth = mmToPixels(pageSize.width);
+    const pxHeight = mmToPixels(pageSize.height);
+    const cellPxWidth = mmToPixels(layout.cellWidth);
+    const cellPxHeight = mmToPixels(layout.cellHeight);
+    const marginPx = mmToPixels(layout.margin);
 
     // Reset the selected image when the images change
     useEffect(() => {
@@ -68,6 +70,44 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
       if (!imageId) return "cover";
       const image = images.find((img) => img.id === imageId);
       return image?.fit || "cover";
+    };
+
+    // Get transform and container styles based on cell orientation
+    const getOrientationStyles = (
+      cell: CollageCell,
+      objectFit: ImageFitOption
+    ) => {
+      const orientation = cell.orientation || "auto";
+
+      if (orientation === "landscape") {
+        // For landscape orientation, we rotate 90 degrees and need to ensure
+        // the image still fills the container properly
+
+        // Calculate the scale factor needed after rotation
+        // When rotated 90°, width becomes height and height becomes width
+        const scaleRatio = cellPxWidth / cellPxHeight;
+
+        let scaleTransform = "";
+
+        if (objectFit === "cover" || objectFit === "fill") {
+          // For cover and fill modes, scale to ensure full coverage
+          scaleTransform = ` scale(${Math.max(scaleRatio, 1 / scaleRatio)})`;
+        } else if (objectFit === "contain") {
+          // For contain mode, scale to fit within bounds
+          scaleTransform = ` scale(${Math.min(scaleRatio, 1 / scaleRatio)})`;
+        }
+
+        return {
+          transform: `rotate(90deg)${scaleTransform}`,
+          transformOrigin: "center",
+        };
+      }
+
+      // For 'auto' and 'portrait', use normal orientation (no rotation)
+      return {
+        transform: "none",
+        transformOrigin: "center",
+      };
     };
 
     // Format dimensions according to selected unit
@@ -120,10 +160,14 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
                           className={cn("w-full h-full cursor-pointer", {
                             "object-cover": objectFit === "cover",
                             "object-contain": objectFit === "contain",
+                            "object-fill": objectFit === "fill",
                             "object-none": objectFit === "original",
                           })}
                           style={{
-                            objectPosition: "center",
+                            objectPosition: "center center",
+                            objectFit:
+                              objectFit === "original" ? "none" : objectFit,
+                            ...getOrientationStyles(cell, objectFit),
                           }}
                           draggable={false}
                         />
