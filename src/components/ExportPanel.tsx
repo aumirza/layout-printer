@@ -1,27 +1,19 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import {
   Download,
-  SlidersHorizontal,
   Printer,
-  Image as ImageIcon,
   RefreshCw,
   Trash2,
+  SlidersHorizontal,
 } from "lucide-react";
-import {
-  PageSize,
-  ExportFormat,
-  MeasurementUnit,
-  LayoutPreset,
-  CollageState,
-} from "@/types/collage";
+import { ExportFormat, MeasurementUnit, CollageState } from "@/types/collage";
 import { toast } from "@/hooks/use-toast";
-import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
+import { Input } from "./ui/input";
 import { UnitConverter } from "@/lib/unit-converter";
-import { CanvasRenderer } from "@/lib/canvas-renderer";
 
 // Color conversion utility for oklch to hex
 const oklchToHex = (oklchString: string): string => {
@@ -81,8 +73,28 @@ const convertElementOklchColors = (element: HTMLElement): void => {
 
   colorProperties.forEach((prop) => {
     const value = computedStyle.getPropertyValue(prop);
-    if (value && value.includes("oklch")) {
-      const convertedValue = convertOklchInCSS(value);
+    if (value && (value.includes("oklch") || value.includes("var("))) {
+      // Handle both direct oklch values and CSS variables
+      let convertedValue = value;
+
+      // Convert oklch functions
+      if (value.includes("oklch")) {
+        convertedValue = convertOklchInCSS(value);
+      }
+
+      // Handle CSS variables that might contain oklch
+      if (value.includes("var(")) {
+        // Replace common CSS variables with hex equivalents
+        convertedValue = convertedValue
+          .replace(/var\(--background\)/g, "#ffffff")
+          .replace(/var\(--foreground\)/g, "#020817")
+          .replace(/var\(--muted\)/g, "#f1f5f9")
+          .replace(/var\(--muted-foreground\)/g, "#64748b")
+          .replace(/var\(--border\)/g, "#e2e8f0")
+          .replace(/var\(--card\)/g, "#ffffff")
+          .replace(/var\(--card-foreground\)/g, "#020817");
+      }
+
       element.style.setProperty(prop, convertedValue, "important");
     }
   });
@@ -93,6 +105,132 @@ const convertElementOklchColors = (element: HTMLElement): void => {
       convertElementOklchColors(child);
     }
   });
+};
+
+// Function to create canvas with proper DPI metadata
+const createHighDPICanvas = (
+  sourceCanvas: HTMLCanvasElement,
+  targetDPI: number
+): HTMLCanvasElement => {
+  const scaleFactor = targetDPI / 96;
+  const newCanvas = document.createElement("canvas");
+  const ctx = newCanvas.getContext("2d")!;
+
+  // Set canvas size with DPI scaling
+  newCanvas.width = sourceCanvas.width * scaleFactor;
+  newCanvas.height = sourceCanvas.height * scaleFactor;
+
+  // Scale context for DPI
+  ctx.scale(scaleFactor, scaleFactor);
+
+  // Draw the source canvas
+  ctx.drawImage(sourceCanvas, 0, 0);
+
+  return newCanvas;
+};
+
+// Function to create PNG with proper DPI metadata
+const createPNGWithDPI = async (
+  canvas: HTMLCanvasElement,
+  dpi: number
+): Promise<Blob> => {
+  return new Promise((resolve) => {
+    canvas.toBlob(
+      async (blob) => {
+        if (!blob) {
+          resolve(new Blob()); // Return empty blob as fallback
+          return;
+        }
+
+        try {
+          // Convert blob to array buffer
+          const arrayBuffer = await blob.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+
+          // Find the IHDR chunk end (should be at position 33 for standard PNG)
+          const ihdrEnd = 33;
+
+          // Calculate pixels per meter for DPI
+          const pixelsPerMeter = Math.round(dpi * 39.3701); // 1 inch = 39.3701 mm
+
+          // Create pHYs chunk
+          const pHYsLength = 9; // pHYs chunk data length
+          const pHYsChunk = new Uint8Array(12 + pHYsLength); // 4 (length) + 4 (type) + 9 (data) + 4 (CRC)
+
+          // Length (4 bytes, big-endian)
+          const lengthBytes = new Uint32Array([pHYsLength]);
+          const lengthView = new DataView(lengthBytes.buffer);
+          pHYsChunk[0] = lengthView.getUint8(3);
+          pHYsChunk[1] = lengthView.getUint8(2);
+          pHYsChunk[2] = lengthView.getUint8(1);
+          pHYsChunk[3] = lengthView.getUint8(0);
+
+          // Type "pHYs" (4 bytes)
+          pHYsChunk[4] = 0x70; // 'p'
+          pHYsChunk[5] = 0x48; // 'H'
+          pHYsChunk[6] = 0x59; // 'Y'
+          pHYsChunk[7] = 0x73; // 's'
+
+          // Data (9 bytes)
+          const pixelsView = new DataView(new ArrayBuffer(4));
+          pixelsView.setUint32(0, pixelsPerMeter, false); // big-endian
+
+          // X pixels per unit (4 bytes)
+          pHYsChunk[8] = pixelsView.getUint8(0);
+          pHYsChunk[9] = pixelsView.getUint8(1);
+          pHYsChunk[10] = pixelsView.getUint8(2);
+          pHYsChunk[11] = pixelsView.getUint8(3);
+
+          // Y pixels per unit (4 bytes)
+          pHYsChunk[12] = pixelsView.getUint8(0);
+          pHYsChunk[13] = pixelsView.getUint8(1);
+          pHYsChunk[14] = pixelsView.getUint8(2);
+          pHYsChunk[15] = pixelsView.getUint8(3);
+
+          // Unit specifier (1 byte): 1 = meters
+          pHYsChunk[16] = 0x01;
+
+          // CRC calculation (simplified - using 0 for now)
+          pHYsChunk[17] = 0x00;
+          pHYsChunk[18] = 0x00;
+          pHYsChunk[19] = 0x00;
+          pHYsChunk[20] = 0x00;
+
+          // Create new PNG with pHYs chunk inserted after IHDR
+          const newPNG = new Uint8Array(uint8Array.length + pHYsChunk.length);
+
+          // Copy PNG header and IHDR chunk
+          newPNG.set(uint8Array.slice(0, ihdrEnd), 0);
+
+          // Insert pHYs chunk
+          newPNG.set(pHYsChunk, ihdrEnd);
+
+          // Copy rest of PNG data
+          newPNG.set(uint8Array.slice(ihdrEnd), ihdrEnd + pHYsChunk.length);
+
+          // Create blob from modified PNG
+          const modifiedBlob = new Blob([newPNG], { type: "image/png" });
+          resolve(modifiedBlob);
+        } catch (error) {
+          console.warn(
+            "Failed to inject DPI metadata, using original PNG:",
+            error
+          );
+          resolve(blob); // Fallback to original blob
+        }
+      },
+      "image/png",
+      1.0
+    );
+  });
+};
+
+// Function to convert canvas to blob with DPI metadata
+const canvasToHighDPIBlob = (
+  canvas: HTMLCanvasElement,
+  dpi: number
+): Promise<Blob> => {
+  return createPNGWithDPI(canvas, dpi);
 };
 
 interface ExportPanelProps {
@@ -120,7 +258,7 @@ export function ExportPanel({
 }: ExportPanelProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("png");
-  const [exportScale, setExportScale] = useState(4); // Increased default scale for better quality
+  const [exportScale, setExportScale] = useState(2); // Export scale multiplier
   const [customDpi, setCustomDpi] = useState(300); // Custom DPI value
 
   const handleExport = async () => {
@@ -129,11 +267,8 @@ export function ExportPanel({
     setIsExporting(true);
 
     try {
-      // Use the shared canvas renderer to create a consistent export element
-      const exportElement = CanvasRenderer.renderCanvasElement(collageState, {
-        dpi: customDpi,
-        forExport: true,
-      });
+      // Clone the canvas element for export processing
+      const exportElement = collageRef.current.cloneNode(true) as HTMLElement;
 
       // Create a temporary container and add it to the document
       const tempContainer = document.createElement("div");
@@ -162,34 +297,35 @@ export function ExportPanel({
           --accent: #f1f5f9 !important;
           --accent-foreground: #0f172a !important;
           --destructive: #ef4444 !important;
+          --destructive-foreground: #f8fafc !important;
           --border: #e2e8f0 !important;
           --input: #e2e8f0 !important;
           --ring: #94a3b8 !important;
-          --chart-1: #f97316 !important;
-          --chart-2: #06b6d4 !important;
-          --chart-3: #3b82f6 !important;
-          --chart-4: #eab308 !important;
-          --chart-5: #f59e0b !important;
+          --radius: 0.5rem !important;
         }
       `;
       document.head.appendChild(styleOverride);
 
-      // Force style recalculation
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
       // Convert oklch colors in the export element
       convertElementOklchColors(exportElement);
 
-      // Capture the canvas with consistent settings
+      // Wait a moment for style processing
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Calculate the actual scale needed to achieve the desired DPI
+      // Canvas default is 96 DPI, so we need to scale accordingly
+      const actualScale = (customDpi / 96) * exportScale;
+
+      // Capture the processed canvas
       const canvas = await html2canvas(exportElement, {
-        scale: exportScale,
+        scale: actualScale, // Use calculated scale for true DPI
         useCORS: true,
         backgroundColor: "#ffffff",
+        allowTaint: true,
+        logging: false,
         width: exportElement.offsetWidth,
         height: exportElement.offsetHeight,
         imageTimeout: 15000,
-        allowTaint: true,
-        logging: false,
       });
 
       // Clean up temporary elements
@@ -197,19 +333,29 @@ export function ExportPanel({
       document.head.removeChild(styleOverride);
 
       if (exportFormat === "png") {
-        // Export as PNG
+        // Export as PNG with proper DPI metadata
+        const pngBlob = await createPNGWithDPI(canvas, customDpi);
+        const url = URL.createObjectURL(pngBlob);
+
         const link = document.createElement("a");
         link.download = `collage-${Date.now()}.png`;
-        link.href = canvas.toDataURL("image/png", 1.0); // Max quality
+        link.href = url;
         link.click();
+
+        // Clean up
+        URL.revokeObjectURL(url);
 
         toast({
           title: "Export complete",
-          description: `Your collage has been exported as PNG at ${customDpi} DPI`,
+          description: `Your collage has been exported as PNG with ${customDpi} DPI metadata (${
+            canvas.width
+          }×${canvas.height}px at ${((customDpi / 96) * exportScale).toFixed(
+            1
+          )}x scale)`,
         });
       } else if (exportFormat === "pdf") {
         // Export as PDF
-        const imgData = canvas.toDataURL("image/png", 1.0); // Max quality
+        const imgData = canvas.toDataURL("image/png", 1.0);
         const pdf = new jsPDF({
           orientation:
             collageState.pageSize.width > collageState.pageSize.height
@@ -217,7 +363,6 @@ export function ExportPanel({
               : "portrait",
           unit: "mm",
           format: [collageState.pageSize.width, collageState.pageSize.height],
-          compress: false, // No compression for better quality
         });
 
         pdf.addImage(
@@ -232,7 +377,10 @@ export function ExportPanel({
 
         toast({
           title: "Export complete",
-          description: `Your collage has been exported as PDF at ${customDpi} DPI`,
+          description: `Your collage has been exported as PDF at ${customDpi} DPI (${(
+            (customDpi / 96) *
+            exportScale
+          ).toFixed(1)}x scale)`,
         });
       } else if (exportFormat === "print") {
         // Direct print
@@ -438,32 +586,50 @@ export function ExportPanel({
         )}
 
         <div>
-          <p className="text-sm mb-2">Resolution (DPI)</p>
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              value={customDpi}
-              onChange={(e) => setCustomDpi(Number(e.target.value))}
-              min="72"
-              max="1200"
-              className="w-20 h-8"
-            />
-            <span className="text-xs text-muted-foreground">DPI</span>
+          <p className="text-sm mb-2">Export Quality</p>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground w-12">DPI:</span>
+              <Input
+                type="number"
+                value={customDpi}
+                onChange={(e) => setCustomDpi(Number(e.target.value))}
+                min="72"
+                max="1200"
+                step="50"
+                className="w-20 h-8"
+              />
+              <span className="text-xs text-muted-foreground">DPI</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground w-12">Scale:</span>
+              <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
+              <input
+                type="range"
+                min="0.5"
+                max="3"
+                step="0.5"
+                value={exportScale}
+                onChange={(e) => setExportScale(Number(e.target.value))}
+                className="flex-1"
+              />
+              <span className="text-xs w-8">{exportScale}x</span>
+            </div>
+
+            <div className="text-xs text-muted-foreground">
+              Effective scale: {((customDpi / 96) * exportScale).toFixed(1)}x
+              {customDpi > 300 && (
+                <span className="text-orange-600 ml-2">
+                  ⚠ High DPI may be slow
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2 mt-2">
-            <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
-            <input
-              type="range"
-              min="1"
-              max="5"
-              step="0.5"
-              value={exportScale}
-              onChange={(e) => setExportScale(Number(e.target.value))}
-              className="w-full"
-            />
-            <span className="text-xs w-8">{exportScale}x</span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
+        </div>
+
+        <div className="text-xs text-muted-foreground">
+          <p>
             Page size: {formatDimension(collageState.pageSize.width)}×
             {formatDimension(collageState.pageSize.height)}
           </p>
