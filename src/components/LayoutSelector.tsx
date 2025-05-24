@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Check, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -7,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UnitConverter } from '@/lib/unit-converter';
 
 interface LayoutSelectorProps {
@@ -117,60 +117,38 @@ export function LayoutSelector({
           </div>
         </div>
       ) : (
-        <div className="relative">
-          <button
-            type="button"
-            className="flex items-center justify-between w-full p-3 bg-white border rounded-lg shadow-sm hover:bg-muted"
-            onClick={() => setIsOpen(!isOpen)}
+        <div className="space-y-2">
+          <Select
+            value={selectedLayout.name}
+            onValueChange={(value) => {
+              if (value === "custom") {
+                setIsCustom(true);
+              } else {
+                const layoutIndex = layouts.findIndex(layout => layout.name === value);
+                if (layoutIndex !== -1) {
+                  onSelect(layoutIndex);
+                }
+                setIsCustom(false); 
+              }
+            }}
           >
-            <span>{selectedLayout.label}</span>
-            <svg
-              className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          
-          {isOpen && (
-            <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg">
-              <ul className="py-1">
-                {layouts.map((layout, index) => (
-                  <li key={layout.id}>
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex items-center w-full px-4 py-2 text-left hover:bg-muted",
-                        selectedLayout.id === layout.id && "bg-primary/10"
-                      )}
-                      onClick={() => {
-                        onSelect(index);
-                        setIsOpen(false);
-                      }}
-                    >
-                      <span className="flex-1">{layout.label}</span>
-                      {selectedLayout.id === layout.id && <Check className="w-4 h-4 text-primary" />}
-                    </button>
-                  </li>
-                ))}
-                <li>
-                  <button
-                    type="button"
-                    className="flex items-center w-full px-4 py-2 text-left hover:bg-muted"
-                    onClick={() => {
-                      setIsOpen(false);
-                      setIsCustom(true);
-                    }}
-                  >
-                    <span className="flex-1 text-primary">Custom Size...</span>
-                    <Edit2 className="w-4 h-4 text-primary" />
-                  </button>
-                </li>
-              </ul>
-            </div>
-          )}
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select a photo size" />
+            </SelectTrigger>
+            <SelectContent>
+              {layouts.map((layout, index) => (
+                <SelectItem key={layout.name} value={layout.name}>
+                  {layout.name} ({formatDimension(layout.cellWidth)} x {formatDimension(layout.cellHeight)})
+                </SelectItem>
+              ))}
+              <SelectItem value="custom">
+                <div className="flex items-center">
+                  <Edit2 className="mr-2 h-4 w-4" />
+                  Custom Size
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
       

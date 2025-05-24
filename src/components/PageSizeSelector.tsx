@@ -1,12 +1,18 @@
-
-import { useState, useEffect } from 'react';
-import { Check, Edit2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { PageSize, MeasurementUnit } from '@/types/collage';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { UnitConverter } from '@/lib/unit-converter';
+import { useState, useEffect } from "react";
+import { Check, Edit2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { PageSize, MeasurementUnit } from "@/types/collage";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { UnitConverter } from "@/lib/unit-converter";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface PageSizeSelectorProps {
   pageSizes: PageSize[];
@@ -23,9 +29,8 @@ export function PageSizeSelector({
   onSelect,
   onCustomSize,
   selectedUnit,
-  onUnitChange
+  onUnitChange,
 }: PageSizeSelectorProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const [isCustom, setIsCustom] = useState(false);
   const [customWidth, setCustomWidth] = useState("");
   const [customHeight, setCustomHeight] = useState("");
@@ -44,17 +49,32 @@ export function PageSizeSelector({
       // Parse the custom dimensions with their units
       const widthData = UnitConverter.parseDimensionString(customWidth);
       const heightData = UnitConverter.parseDimensionString(customHeight);
-      
+
       // Convert to mm (internal working unit)
-      const widthInMm = UnitConverter.convertToMm(widthData.value, widthData.unit);
-      const heightInMm = UnitConverter.convertToMm(heightData.value, heightData.unit);
-      
+      const widthInMm = UnitConverter.convertToMm(
+        widthData.value,
+        widthData.unit
+      );
+      const heightInMm = UnitConverter.convertToMm(
+        heightData.value,
+        heightData.unit
+      );
+
       if (widthInMm > 0 && heightInMm > 0) {
         onCustomSize(widthInMm, heightInMm);
         setIsCustom(false);
       }
     } catch (error) {
       console.error("Error parsing custom size:", error);
+    }
+  };
+
+  const handlePageSizeChange = (value: string) => {
+    if (value === "custom") {
+      setIsCustom(true);
+    } else {
+      setIsCustom(false); // Ensure custom form is hidden if a preset is chosen
+      onSelect(parseInt(value, 10));
     }
   };
 
@@ -68,9 +88,9 @@ export function PageSizeSelector({
             size="sm"
             className={cn(
               "px-2 h-8 text-xs",
-              selectedUnit === 'mm' && "bg-muted"
+              selectedUnit === "mm" && "bg-muted"
             )}
-            onClick={() => handleUnitChange('mm')}
+            onClick={() => handleUnitChange("mm")}
           >
             mm
           </Button>
@@ -79,9 +99,9 @@ export function PageSizeSelector({
             size="sm"
             className={cn(
               "px-2 h-8 text-xs",
-              selectedUnit === 'cm' && "bg-muted"
+              selectedUnit === "cm" && "bg-muted"
             )}
-            onClick={() => handleUnitChange('cm')}
+            onClick={() => handleUnitChange("cm")}
           >
             cm
           </Button>
@@ -90,20 +110,22 @@ export function PageSizeSelector({
             size="sm"
             className={cn(
               "px-2 h-8 text-xs",
-              selectedUnit === 'in' && "bg-muted"
+              selectedUnit === "in" && "bg-muted"
             )}
-            onClick={() => handleUnitChange('in')}
+            onClick={() => handleUnitChange("in")}
           >
             in
           </Button>
         </div>
       </div>
-      
+
       {isCustom ? (
         <div className="space-y-3 p-3 border rounded-lg">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label htmlFor="custom-width" className="text-xs">Width</Label>
+              <Label htmlFor="custom-width" className="text-xs">
+                Width
+              </Label>
               <Input
                 id="custom-width"
                 value={customWidth}
@@ -113,7 +135,9 @@ export function PageSizeSelector({
               />
             </div>
             <div>
-              <Label htmlFor="custom-height" className="text-xs">Height</Label>
+              <Label htmlFor="custom-height" className="text-xs">
+                Height
+              </Label>
               <Input
                 id="custom-height"
                 value={customHeight}
@@ -131,74 +155,42 @@ export function PageSizeSelector({
             >
               Cancel
             </Button>
-            <Button
-              size="sm"
-              onClick={handleCustomSizeSubmit}
-            >
+            <Button size="sm" onClick={handleCustomSizeSubmit}>
               Apply
             </Button>
           </div>
         </div>
       ) : (
-        <div className="relative">
-          <button
-            type="button"
-            className="flex items-center justify-between w-full p-3 bg-white border rounded-lg shadow-sm hover:bg-muted"
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            <span>{selectedPageSize.label}</span>
-            <svg
-              className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          
-          {isOpen && (
-            <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg">
-              <ul className="py-1">
-                {pageSizes.map((size, index) => (
-                  <li key={size.name}>
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex items-center w-full px-4 py-2 text-left hover:bg-muted",
-                        selectedPageSize.name === size.name && "bg-primary/10"
-                      )}
-                      onClick={() => {
-                        onSelect(index);
-                        setIsOpen(false);
-                      }}
-                    >
-                      <span className="flex-1">{size.label}</span>
-                      {selectedPageSize.name === size.name && <Check className="w-4 h-4 text-primary" />}
-                    </button>
-                  </li>
-                ))}
-                <li>
-                  <button
-                    type="button"
-                    className="flex items-center w-full px-4 py-2 text-left hover:bg-muted"
-                    onClick={() => {
-                      setIsOpen(false);
-                      setIsCustom(true);
-                    }}
-                  >
-                    <span className="flex-1 text-primary">Custom Size...</span>
-                    <Edit2 className="w-4 h-4 text-primary" />
-                  </button>
-                </li>
-              </ul>
-            </div>
-          )}
-        </div>
+        <Select
+          value={pageSizes
+            .findIndex((p) => p.name === selectedPageSize.name)
+            .toString()}
+          onValueChange={handlePageSizeChange}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select page size" />
+          </SelectTrigger>
+          <SelectContent>
+            {pageSizes.map((size, index) => (
+              <SelectItem key={size.name} value={index.toString()}>
+                {size.label}
+              </SelectItem>
+            ))}
+            <SelectItem value="custom">
+              <div className="flex items-center">
+                <span className="flex-1 text-primary">Custom Size...</span>
+                <Edit2 className="w-4 h-4 text-primary ml-2" />
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
       )}
-      
+
       <div className="mt-2 text-sm text-muted-foreground">
-        <p>Selected size: {formatDimension(selectedPageSize.width)}×{formatDimension(selectedPageSize.height)}</p>
+        <p>
+          Selected size: {formatDimension(selectedPageSize.width)}×
+          {formatDimension(selectedPageSize.height)}
+        </p>
       </div>
     </div>
   );
