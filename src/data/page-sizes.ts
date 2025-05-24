@@ -17,7 +17,7 @@ export const pageSizes: PageSize[] = [
     width: 304.8,
     height: 457.2,
     label: "12×18 inches",
-    margin: 7,
+    margin: 5,
   },
   {
     id: "5x7",
