@@ -148,33 +148,89 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
                           draggable={false}
                         />
                         {showCuttingMarkers && (
-                          <div className="absolute inset-0 pointer-events-none">
-                            {/* Use dynamic marker color with box-shadow for thinner lines */}
-                            <div
-                              className="absolute left-0 top-0 w-1 h-1"
-                              style={{ 
-                                boxShadow: `inset 0.5px 0 0 0 ${markerColor}, inset 0 0.5px 0 0 ${markerColor}` 
-                              }}
-                            ></div>
-                            <div
-                              className="absolute right-0 top-0 w-1 h-1"
-                              style={{ 
-                                boxShadow: `inset -0.5px 0 0 0 ${markerColor}, inset 0 0.5px 0 0 ${markerColor}` 
-                              }}
-                            ></div>
-                            <div
-                              className="absolute left-0 bottom-0 w-1 h-1"
-                              style={{ 
-                                boxShadow: `inset 0.5px 0 0 0 ${markerColor}, inset 0 -0.5px 0 0 ${markerColor}` 
-                              }}
-                            ></div>
-                            <div
-                              className="absolute right-0 bottom-0 w-1 h-1"
-                              style={{ 
-                                boxShadow: `inset -0.5px 0 0 0 ${markerColor}, inset 0 -0.5px 0 0 ${markerColor}` 
-                              }}
-                            ></div>
-                          </div>
+                          <svg
+                            className="absolute inset-0 pointer-events-none"
+                            width="100%"
+                            height="100%"
+                            style={{ overflow: "visible" }}
+                          >
+                            {/* Top-left corner marker */}
+                            <g>
+                              <line
+                                x1="0"
+                                y1="0"
+                                x2="8"
+                                y2="0"
+                                stroke={markerColor}
+                                strokeWidth="0.5"
+                              />
+                              <line
+                                x1="0"
+                                y1="0"
+                                x2="0"
+                                y2="8"
+                                stroke={markerColor}
+                                strokeWidth="0.5"
+                              />
+                            </g>
+                            {/* Top-right corner marker */}
+                            <g>
+                              <line
+                                x1="100%"
+                                y1="0"
+                                x2="calc(100% - 8px)"
+                                y2="0"
+                                stroke={markerColor}
+                                strokeWidth="0.5"
+                              />
+                              <line
+                                x1="100%"
+                                y1="0"
+                                x2="100%"
+                                y2="8"
+                                stroke={markerColor}
+                                strokeWidth="0.5"
+                              />
+                            </g>
+                            {/* Bottom-left corner marker */}
+                            <g>
+                              <line
+                                x1="0"
+                                y1="100%"
+                                x2="8"
+                                y2="100%"
+                                stroke={markerColor}
+                                strokeWidth="0.5"
+                              />
+                              <line
+                                x1="0"
+                                y1="100%"
+                                x2="0"
+                                y2="calc(100% - 8px)"
+                                stroke={markerColor}
+                                strokeWidth="0.5"
+                              />
+                            </g>
+                            {/* Bottom-right corner marker */}
+                            <g>
+                              <line
+                                x1="100%"
+                                y1="100%"
+                                x2="calc(100% - 8px)"
+                                y2="100%"
+                                stroke={markerColor}
+                                strokeWidth="0.5"
+                              />
+                              <line
+                                x1="100%"
+                                y1="100%"
+                                x2="100%"
+                                y2="calc(100% - 8px)"
+                                stroke={markerColor}
+                                strokeWidth="0.5"
+                              />
+                            </g>
+                          </svg>
                         )}
                       </>
                     ) : (
