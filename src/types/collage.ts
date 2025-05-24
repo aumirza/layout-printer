@@ -44,6 +44,7 @@ export interface CollageState {
   columns: number;
   spaceOptimization: SpaceOptimization;
   showCuttingMarkers: boolean;
+  markerColor: string;
   selectedUnit: MeasurementUnit;
 }
 

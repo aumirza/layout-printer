@@ -19,6 +19,7 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
       rows,
       columns,
       showCuttingMarkers,
+      markerColor,
       selectedUnit,
     } = collageState;
     const [activeCell, setActiveCell] = useState<{
@@ -148,11 +149,31 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
                         />
                         {showCuttingMarkers && (
                           <div className="absolute inset-0 pointer-events-none">
-                            {/* Use thin 2mm markers as requested */}
-                            <div className="absolute left-0 top-0 w-2 h-2 border-t-[1px] border-l-[1px] border-gray-400"></div>
-                            <div className="absolute right-0 top-0 w-2 h-2 border-t-[1px] border-r-[1px] border-gray-400"></div>
-                            <div className="absolute left-0 bottom-0 w-2 h-2 border-b-[1px] border-l-[1px] border-gray-400"></div>
-                            <div className="absolute right-0 bottom-0 w-2 h-2 border-b-[1px] border-r-[1px] border-gray-400"></div>
+                            {/* Use dynamic marker color with box-shadow for thinner lines */}
+                            <div
+                              className="absolute left-0 top-0 w-1 h-1"
+                              style={{ 
+                                boxShadow: `inset 0.5px 0 0 0 ${markerColor}, inset 0 0.5px 0 0 ${markerColor}` 
+                              }}
+                            ></div>
+                            <div
+                              className="absolute right-0 top-0 w-1 h-1"
+                              style={{ 
+                                boxShadow: `inset -0.5px 0 0 0 ${markerColor}, inset 0 0.5px 0 0 ${markerColor}` 
+                              }}
+                            ></div>
+                            <div
+                              className="absolute left-0 bottom-0 w-1 h-1"
+                              style={{ 
+                                boxShadow: `inset 0.5px 0 0 0 ${markerColor}, inset 0 -0.5px 0 0 ${markerColor}` 
+                              }}
+                            ></div>
+                            <div
+                              className="absolute right-0 bottom-0 w-1 h-1"
+                              style={{ 
+                                boxShadow: `inset -0.5px 0 0 0 ${markerColor}, inset 0 -0.5px 0 0 ${markerColor}` 
+                              }}
+                            ></div>
                           </div>
                         )}
                       </>

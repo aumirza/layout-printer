@@ -30,6 +30,7 @@ export function CollageSidebar({ collageRef }: CollageSidebarProps) {
     distributeEqually,
     setSpaceOptimization,
     toggleCuttingMarkers,
+    setMarkerColor,
     resetCanvas,
     clearAll,
     setUnit,
@@ -104,6 +105,7 @@ export function CollageSidebar({ collageRef }: CollageSidebarProps) {
                 collageState={collageState}
                 isEnabled={collageState.images.length > 0}
                 onToggleCuttingMarkers={toggleCuttingMarkers}
+                onSetMarkerColor={setMarkerColor}
                 showCuttingMarkers={collageState.showCuttingMarkers}
                 onResetCanvas={resetCanvas}
                 onClearAll={clearAll}

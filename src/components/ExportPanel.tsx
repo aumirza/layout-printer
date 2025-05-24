@@ -100,6 +100,7 @@ interface ExportPanelProps {
   collageState: CollageState;
   isEnabled: boolean;
   onToggleCuttingMarkers: (show: boolean) => void;
+  onSetMarkerColor: (color: string) => void;
   showCuttingMarkers: boolean;
   onResetCanvas: () => void;
   onClearAll: () => void;
@@ -111,6 +112,7 @@ export function ExportPanel({
   collageState,
   isEnabled,
   onToggleCuttingMarkers,
+  onSetMarkerColor,
   showCuttingMarkers,
   onResetCanvas,
   onClearAll,
@@ -387,6 +389,53 @@ export function ExportPanel({
             onCheckedChange={onToggleCuttingMarkers}
           />
         </div>
+
+        {showCuttingMarkers && (
+          <div className="pl-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                Marker Color
+              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={collageState.markerColor}
+                  onChange={(e) => onSetMarkerColor(e.target.value)}
+                  className="w-8 h-6 border border-border rounded cursor-pointer"
+                  title="Choose marker color"
+                />
+                <span className="text-xs text-muted-foreground font-mono">
+                  {collageState.markerColor}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-1">
+              {[
+                "#9ca3af",
+                "#ef4444",
+                "#3b82f6",
+                "#10b981",
+                "#f59e0b",
+                "#8b5cf6",
+                "#000000",
+              ].map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  className={`w-5 h-5 rounded border-2 cursor-pointer ${
+                    collageState.markerColor === color
+                      ? "border-foreground"
+                      : "border-border"
+                  }`}
+                  style={{ backgroundColor: color }}
+                  onClick={() => onSetMarkerColor(color)}
+                  title={`Set marker color to ${color}`}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <p className="text-sm mb-2">Resolution (DPI)</p>

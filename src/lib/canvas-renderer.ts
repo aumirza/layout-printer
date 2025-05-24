@@ -172,7 +172,7 @@ export class CanvasRenderer {
     options: CanvasRendererOptions = {}
   ): HTMLDivElement {
     const { dpi = 96, forExport = false } = options;
-    const { pageSize, layout, cells, images, showCuttingMarkers } =
+    const { pageSize, layout, cells, images, showCuttingMarkers, markerColor } =
       collageState;
 
     // Calculate dimensions
@@ -260,10 +260,10 @@ export class CanvasRenderer {
 
             // Add corner markers
             const corners = [
-              "left: 0; top: 0; width: 8px; height: 8px; border-top: 1px solid #9ca3af; border-left: 1px solid #9ca3af;",
-              "right: 0; top: 0; width: 8px; height: 8px; border-top: 1px solid #9ca3af; border-right: 1px solid #9ca3af;",
-              "left: 0; bottom: 0; width: 8px; height: 8px; border-bottom: 1px solid #9ca3af; border-left: 1px solid #9ca3af;",
-              "right: 0; bottom: 0; width: 8px; height: 8px; border-bottom: 1px solid #9ca3af; border-right: 1px solid #9ca3af;",
+              `left: 0; top: 0; width: 8px; height: 8px; border-top: 1px solid ${markerColor}; border-left: 1px solid ${markerColor};`,
+              `right: 0; top: 0; width: 8px; height: 8px; border-top: 1px solid ${markerColor}; border-right: 1px solid ${markerColor};`,
+              `left: 0; bottom: 0; width: 8px; height: 8px; border-bottom: 1px solid ${markerColor}; border-left: 1px solid ${markerColor};`,
+              `right: 0; bottom: 0; width: 8px; height: 8px; border-bottom: 1px solid ${markerColor}; border-right: 1px solid ${markerColor};`,
             ];
 
             corners.forEach((cornerStyle) => {

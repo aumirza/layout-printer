@@ -41,6 +41,7 @@ interface CollageContextType {
   distributeEqually: () => void;
   setSpaceOptimization: (value: SpaceOptimization) => void;
   toggleCuttingMarkers: (show: boolean) => void;
+  setMarkerColor: (color: string) => void;
   resetCanvas: () => void;
   clearAll: () => void;
   setUnit: (unit: MeasurementUnit) => void;
@@ -123,6 +124,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     columns: initialGrid.columns,
     spaceOptimization: "loose",
     showCuttingMarkers: true,
+    markerColor: "#9ca3af",
     selectedUnit: "mm",
   });
 
@@ -194,7 +196,10 @@ export function CollageProvider({ children }: { children: ReactNode }) {
 
   const updateLayout = (layoutIndex: number) => {
     // Get all layouts (built-in + custom)
-    const allLayouts = [...layoutPresets, ...CustomPresetStorage.getCustomLayouts()];
+    const allLayouts = [
+      ...layoutPresets,
+      ...CustomPresetStorage.getCustomLayouts(),
+    ];
     const newLayout = allLayouts[layoutIndex];
 
     if (!newLayout) {
@@ -487,6 +492,13 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const setMarkerColor = (color: string) => {
+    setCollageState((prev) => ({
+      ...prev,
+      markerColor: color,
+    }));
+  };
+
   const resetCanvas = () => {
     setCollageState((prev) => {
       // Keep the images but reset all cells
@@ -734,6 +746,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
         distributeEqually,
         setSpaceOptimization,
         toggleCuttingMarkers,
+        setMarkerColor,
         resetCanvas,
         clearAll,
         setUnit,
