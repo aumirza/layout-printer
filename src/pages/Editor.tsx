@@ -10,7 +10,7 @@ const Editor = () => {
     useCollage();
 
   useEffect(() => {
-    const hasSeenSetup = localStorage.getItem("hasSeenCollageSetup");
+    const hasSeenSetup = sessionStorage.getItem("hasSeenCollageSetup");
     if (!hasSeenSetup) {
       setShowSetupModal(true);
     }
@@ -22,7 +22,7 @@ const Editor = () => {
     setSpaceOptimization(settings.spaceOptimization);
     setUnit(settings.selectedUnit);
 
-    localStorage.setItem("hasSeenCollageSetup", "true");
+    sessionStorage.setItem("hasSeenCollageSetup", "true");
     setShowSetupModal(false);
   };
 
