@@ -1,4 +1,5 @@
 export interface PageSize {
+  id?: string;
   name: string;
   width: number; // in mm
   height: number; // in mm
