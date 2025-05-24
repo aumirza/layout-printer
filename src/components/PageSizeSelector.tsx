@@ -1,18 +1,14 @@
 import { useState, useEffect } from "react";
-import { Check, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageSize, MeasurementUnit } from "@/types/collage";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { UnitConverter } from "@/lib/unit-converter";
+import { PresetSelector } from "@/components/ui/preset-selector";
+import { CustomPresetDialog } from "@/components/ui/custom-preset-dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  CustomPresetStorage,
+  CustomPageSize,
+} from "@/lib/custom-preset-storage";
 
 interface PageSizeSelectorProps {
   pageSizes: PageSize[];
@@ -31,10 +27,26 @@ export function PageSizeSelector({
   selectedUnit,
   onUnitChange,
 }: PageSizeSelectorProps) {
-  const [isCustom, setIsCustom] = useState(false);
-  const [customWidth, setCustomWidth] = useState("");
-  const [customHeight, setCustomHeight] = useState("");
-  const [customMargin, setCustomMargin] = useState("");
+  const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
+  const [allPageSizes, setAllPageSizes] = useState<
+    (PageSize | CustomPageSize)[]
+  >([]);
+
+  // Load all page sizes (default + custom) on component mount
+  useEffect(() => {
+    const loadAllPageSizes = () => {
+      const customSizes = CustomPresetStorage.getCustomPageSizes();
+      setAllPageSizes([...pageSizes, ...customSizes]);
+    };
+
+    loadAllPageSizes();
+
+    // Listen for storage changes to update custom presets
+    const handleStorageChange = () => loadAllPageSizes();
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [pageSizes]);
 
   // Format dimensions according to selected unit
   const formatDimension = (value: number): string => {
@@ -45,44 +57,29 @@ export function PageSizeSelector({
     onUnitChange(unit);
   };
 
-  const handleCustomSizeSubmit = () => {
-    try {
-      // Parse the custom dimensions with their units
-      const widthData = UnitConverter.parseDimensionString(customWidth);
-      const heightData = UnitConverter.parseDimensionString(customHeight);
-      const marginData = UnitConverter.parseDimensionString(
-        customMargin || "5mm"
-      );
+  const handleCustomPresetSave = (data: {
+    width: number;
+    height: number;
+    margin: number;
+    name: string;
+    saveAsPreset: boolean;
+  }) => {
+    // Apply the custom size immediately
+    onCustomSize(data.width, data.height, data.margin);
 
-      // Convert to mm (internal working unit)
-      const widthInMm = UnitConverter.convertToMm(
-        widthData.value,
-        widthData.unit
-      );
-      const heightInMm = UnitConverter.convertToMm(
-        heightData.value,
-        heightData.unit
-      );
-      const marginInMm = UnitConverter.convertToMm(
-        marginData.value,
-        marginData.unit
-      );
+    // Save as preset if requested
+    if (data.saveAsPreset) {
+      const customPageSize = CustomPresetStorage.saveCustomPageSize({
+        name: data.name,
+        width: data.width,
+        height: data.height,
+        margin: data.margin,
+        label: data.name,
+      });
 
-      if (widthInMm > 0 && heightInMm > 0 && marginInMm >= 0) {
-        onCustomSize(widthInMm, heightInMm, marginInMm);
-        setIsCustom(false);
-      }
-    } catch (error) {
-      console.error("Error parsing custom size:", error);
-    }
-  };
-
-  const handlePageSizeChange = (value: string) => {
-    if (value === "custom") {
-      setIsCustom(true);
-    } else {
-      setIsCustom(false); // Ensure custom form is hidden if a preset is chosen
-      onSelect(parseInt(value, 10));
+      // Refresh the list
+      const customSizes = CustomPresetStorage.getCustomPageSizes();
+      setAllPageSizes([...pageSizes, ...customSizes]);
     }
   };
 
@@ -127,84 +124,22 @@ export function PageSizeSelector({
         </div>
       </div>
 
-      {isCustom ? (
-        <div className="space-y-3 p-3 border rounded-lg">
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="custom-width" className="text-xs">
-                Width
-              </Label>
-              <Input
-                id="custom-width"
-                value={customWidth}
-                onChange={(e) => setCustomWidth(e.target.value)}
-                placeholder={`e.g., 210mm, 21cm, 8.5in`}
-                className="h-9"
-              />
-            </div>
-            <div>
-              <Label htmlFor="custom-height" className="text-xs">
-                Height
-              </Label>
-              <Input
-                id="custom-height"
-                value={customHeight}
-                onChange={(e) => setCustomHeight(e.target.value)}
-                placeholder={`e.g., 297mm, 29.7cm, 11in`}
-                className="h-9"
-              />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="custom-margin" className="text-xs">
-              Margin
-            </Label>
-            <Input
-              id="custom-margin"
-              value={customMargin}
-              onChange={(e) => setCustomMargin(e.target.value)}
-              placeholder={`e.g., 5mm, 0.5cm, 0.2in`}
-              className="h-9"
-            />
-          </div>
-          <div className="flex justify-end space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsCustom(false)}
-            >
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleCustomSizeSubmit}>
-              Apply
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Select
-          value={pageSizes
-            .findIndex((p) => p.name === selectedPageSize.name)
-            .toString()}
-          onValueChange={handlePageSizeChange}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select page size" />
-          </SelectTrigger>
-          <SelectContent>
-            {pageSizes.map((size, index) => (
-              <SelectItem key={size.name} value={index.toString()}>
-                {size.label}
-              </SelectItem>
-            ))}
-            <SelectItem value="custom">
-              <div className="flex items-center">
-                <span className="flex-1 text-primary">Custom Size...</span>
-                <Edit2 className="w-4 h-4 text-primary ml-2" />
-              </div>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      )}
+      <PresetSelector
+        items={allPageSizes}
+        selectedIndex={allPageSizes.findIndex(
+          (p) => p.name === selectedPageSize.name
+        )}
+        onSelect={onSelect}
+        onCustomCreate={() => setIsCustomDialogOpen(true)}
+        formatItemLabel={(size) =>
+          `${size.label} (${formatDimension(size.width)}×${formatDimension(
+            size.height
+          )})`
+        }
+        placeholder="Select page size"
+        customCreateLabel="Create Custom Size..."
+        className="w-full"
+      />
 
       <div className="mt-2 text-sm text-muted-foreground">
         <p>
@@ -213,6 +148,13 @@ export function PageSizeSelector({
         </p>
         <p>Margin: {formatDimension(selectedPageSize.margin)}</p>
       </div>
+
+      <CustomPresetDialog
+        open={isCustomDialogOpen}
+        onClose={() => setIsCustomDialogOpen(false)}
+        type="pageSize"
+        onSave={handleCustomPresetSave}
+      />
     </div>
   );
 }

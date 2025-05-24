@@ -23,39 +23,41 @@ import {
 import { UnitConverter } from "@/lib/unit-converter";
 import { Trash2, PlusCircle, Download, Upload } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import {
+  CustomPresetStorage,
+  CustomLayoutPreset,
+} from "@/lib/custom-preset-storage";
 
 export function PhotoSizePresets() {
-  const [customPresets, setCustomPresets] = useState<LayoutPreset[]>([]);
+  const [customPresets, setCustomPresets] = useState<CustomLayoutPreset[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState<MeasurementUnit>("mm");
 
   const [newPreset, setNewPreset] = useState({
-    id: "",
     name: "",
     label: "",
     cellWidth: "",
     cellHeight: "",
   });
 
-  // Load custom presets from localStorage
+  // Load custom presets from storage
   useEffect(() => {
-    const savedPresets = localStorage.getItem("customLayoutPresets");
-    if (savedPresets) {
-      try {
-        setCustomPresets(JSON.parse(savedPresets));
-      } catch (error) {
-        console.error("Error loading custom presets:", error);
-      }
-    }
-  }, []);
+    const loadPresets = () => {
+      const presets = CustomPresetStorage.getCustomLayouts();
+      setCustomPresets(presets);
+    };
 
-  const savePresetsToStorage = (presets: LayoutPreset[]) => {
-    localStorage.setItem("customLayoutPresets", JSON.stringify(presets));
-  };
+    loadPresets();
+
+    // Listen for storage changes to update custom presets
+    const handleStorageChange = () => loadPresets();
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
 
   const handleAddPreset = () => {
     if (
-      !newPreset.id ||
       !newPreset.name ||
       !newPreset.label ||
       !newPreset.cellWidth ||
@@ -94,25 +96,21 @@ export function PhotoSizePresets() {
         return;
       }
 
-      const preset: LayoutPreset = {
-        id: newPreset.id.toLowerCase().replace(/\s+/g, "-"),
+      const savedPreset = CustomPresetStorage.saveCustomLayout({
         name: newPreset.name,
         label: newPreset.label,
         cellWidth: widthInMm,
         cellHeight: heightInMm,
-      };
+      });
 
-      const updatedPresets = [...customPresets, preset];
-      setCustomPresets(updatedPresets);
-      savePresetsToStorage(updatedPresets);
+      setCustomPresets(CustomPresetStorage.getCustomLayouts());
 
       toast({
         title: "Preset added",
-        description: `Added ${preset.label} to your custom presets`,
+        description: `Added ${savedPreset.label} to your custom presets`,
       });
 
       setNewPreset({
-        id: "",
         name: "",
         label: "",
         cellWidth: "",
@@ -128,10 +126,9 @@ export function PhotoSizePresets() {
     }
   };
 
-  const handleDeletePreset = (index: number) => {
-    const updatedPresets = customPresets.filter((_, i) => i !== index);
-    setCustomPresets(updatedPresets);
-    savePresetsToStorage(updatedPresets);
+  const handleDeletePreset = (id: string) => {
+    CustomPresetStorage.deleteCustomLayout(id);
+    setCustomPresets(CustomPresetStorage.getCustomLayouts());
 
     toast({
       title: "Preset deleted",
@@ -173,8 +170,18 @@ export function PhotoSizePresets() {
           Array.isArray(importedPresets) &&
           importedPresets.every(isValidLayoutPreset)
         ) {
-          setCustomPresets(importedPresets);
-          savePresetsToStorage(importedPresets);
+          // Convert imported presets to custom presets and save them
+          importedPresets.forEach((preset: LayoutPreset) => {
+            CustomPresetStorage.saveCustomLayout({
+              name: preset.name,
+              label: preset.label,
+              cellWidth: preset.cellWidth,
+              cellHeight: preset.cellHeight,
+            });
+          });
+
+          // Refresh the list
+          setCustomPresets(CustomPresetStorage.getCustomLayouts());
 
           toast({
             title: "Presets imported",
@@ -308,8 +315,8 @@ export function PhotoSizePresets() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {customPresets.map((preset, index) => (
-                  <TableRow key={`${preset.id}-${index}`}>
+                {customPresets.map((preset) => (
+                  <TableRow key={preset.id}>
                     <TableCell>{preset.label}</TableCell>
                     <TableCell>
                       {formatDimension(preset.cellWidth)}×
@@ -319,7 +326,7 @@ export function PhotoSizePresets() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDeletePreset(index)}
+                        onClick={() => handleDeletePreset(preset.id)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -346,54 +353,37 @@ export function PhotoSizePresets() {
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="preset-id">ID</Label>
-                <Input
-                  id="preset-id"
-                  placeholder="e.g., custom-3x5"
-                  value={newPreset.id}
-                  onChange={(e) =>
-                    setNewPreset({ ...newPreset, id: e.target.value })
-                  }
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  System identifier
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="preset-name">Name</Label>
-                <Input
-                  id="preset-name"
-                  placeholder="e.g., 3x5_custom"
-                  value={newPreset.name}
-                  onChange={(e) =>
-                    setNewPreset({ ...newPreset, name: e.target.value })
-                  }
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  System name
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="preset-label">Display Name</Label>
-                <Input
-                  id="preset-label"
-                  placeholder="e.g., Custom 3×5"
-                  value={newPreset.label}
-                  onChange={(e) =>
-                    setNewPreset({ ...newPreset, label: e.target.value })
-                  }
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  User-friendly name
-                </p>
-              </div>
+            <div>
+              <Label htmlFor="preset-name">Display Name</Label>
+              <Input
+                id="preset-name"
+                placeholder="e.g., Custom 3×5 Photo"
+                value={newPreset.name}
+                onChange={(e) =>
+                  setNewPreset({ ...newPreset, name: e.target.value })
+                }
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                User-friendly name for the preset
+              </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="preset-label">Label</Label>
+              <Input
+                id="preset-label"
+                placeholder="e.g., Custom 3×5"
+                value={newPreset.label}
+                onChange={(e) =>
+                  setNewPreset({ ...newPreset, label: e.target.value })
+                }
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Short display label
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="preset-width">Width</Label>
                 <Input

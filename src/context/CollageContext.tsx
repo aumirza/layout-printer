@@ -7,6 +7,7 @@ import {
 } from "react";
 import { pageSizes, createCustomPageSize } from "@/data/page-sizes";
 import { layoutPresets, createCustomLayout } from "@/data/layout-presets";
+import { CustomPresetStorage } from "@/lib/custom-preset-storage";
 import {
   CollageState,
   CollageImage,
@@ -192,7 +193,18 @@ export function CollageProvider({ children }: { children: ReactNode }) {
   };
 
   const updateLayout = (layoutIndex: number) => {
-    const newLayout = layoutPresets[layoutIndex];
+    // Get all layouts (built-in + custom)
+    const allLayouts = [...layoutPresets, ...CustomPresetStorage.getCustomLayouts()];
+    const newLayout = allLayouts[layoutIndex];
+
+    if (!newLayout) {
+      toast({
+        title: "Error",
+        description: "Layout not found",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setCollageState((prev) => {
       // Calculate new grid dimensions based on the selected layout

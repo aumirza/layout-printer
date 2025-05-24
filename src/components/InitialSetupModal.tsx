@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   MeasurementUnit,
   PageSize,
@@ -22,10 +22,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { PresetSelector } from "@/components/ui/preset-selector";
 import { pageSizes } from "@/data/page-sizes";
 import { layoutPresets } from "@/data/layout-presets";
 import { UnitConverter } from "@/lib/unit-converter";
 import { Settings } from "@/types/settings";
+import {
+  CustomPresetDialog,
+  type PageSizeData,
+  type LayoutData,
+} from "@/components/ui/custom-preset-dialog";
+import {
+  CustomPresetStorage,
+  CustomPageSize,
+  CustomLayoutPreset,
+} from "@/lib/custom-preset-storage";
 
 interface InitialSetupModalProps {
   open: boolean;
@@ -45,23 +56,51 @@ export function InitialSetupModal({
   const [selectedUnit, setSelectedUnit] = useState<MeasurementUnit>("mm");
   const [calculatedCells, setCalculatedCells] = useState<number>(0);
 
+  // Custom preset states
+  const [customPageSizes, setCustomPageSizes] = useState<CustomPageSize[]>([]);
+  const [customLayouts, setCustomLayouts] = useState<CustomLayoutPreset[]>([]);
+  const [customDialogOpen, setCustomDialogOpen] = useState(false);
+  const [customDialogType, setCustomDialogType] = useState<
+    "pageSize" | "layout"
+  >("pageSize");
+
+  // Load custom presets
+  useEffect(() => {
+    setCustomPageSizes(CustomPresetStorage.getCustomPageSizes());
+    setCustomLayouts(CustomPresetStorage.getCustomLayouts());
+  }, []);
+
+  // Get all page sizes (built-in + custom)
+  const allPageSizes = useMemo(
+    () => [...pageSizes, ...customPageSizes],
+    [customPageSizes]
+  );
+
+  // Get all layouts (built-in + custom)
+  const allLayouts = useMemo(
+    () => [...layoutPresets, ...customLayouts],
+    [customLayouts]
+  );
+
   // Calculate the estimated number of cells
   useEffect(() => {
     if (pageSizeIndex >= 0 && layoutIndex >= 0) {
-      const pageSize = pageSizes[pageSizeIndex];
-      const layout = layoutPresets[layoutIndex];
+      const pageSize = allPageSizes[pageSizeIndex];
+      const layout = allLayouts[layoutIndex];
 
-      // Calculate usable area by removing margins
-      const usableWidth = pageSize.width - pageSize.margin * 2;
-      const usableHeight = pageSize.height - pageSize.margin * 2;
+      if (pageSize && layout) {
+        // Calculate usable area by removing margins
+        const usableWidth = pageSize.width - pageSize.margin * 2;
+        const usableHeight = pageSize.height - pageSize.margin * 2;
 
-      // Calculate cells based on layout dimensions
-      const columns = Math.floor(usableWidth / layout.cellWidth);
-      const rows = Math.floor(usableHeight / layout.cellHeight);
+        // Calculate cells based on layout dimensions
+        const columns = Math.floor(usableWidth / layout.cellWidth);
+        const rows = Math.floor(usableHeight / layout.cellHeight);
 
-      setCalculatedCells(rows * columns);
+        setCalculatedCells(rows * columns);
+      }
     }
-  }, [pageSizeIndex, layoutIndex]);
+  }, [pageSizeIndex, layoutIndex, allPageSizes, allLayouts]);
 
   const handleApply = () => {
     onApplySettings({
@@ -82,6 +121,44 @@ export function InitialSetupModal({
         selectedUnit,
       })
     );
+  };
+
+  const handleCreateCustomPageSize = () => {
+    setCustomDialogType("pageSize");
+    setCustomDialogOpen(true);
+  };
+
+  const handleCreateCustomLayout = () => {
+    setCustomDialogType("layout");
+    setCustomDialogOpen(true);
+  };
+
+  const handleSaveCustomPreset = (data: PageSizeData | LayoutData) => {
+    if (customDialogType === "pageSize") {
+      const pageSizeData = data as PageSizeData;
+      const newCustomPageSize = CustomPresetStorage.saveCustomPageSize({
+        name: pageSizeData.name,
+        label: pageSizeData.name,
+        width: pageSizeData.width,
+        height: pageSizeData.height,
+        margin: pageSizeData.margin,
+      });
+      setCustomPageSizes((prev) => [...prev, newCustomPageSize]);
+      // Select the newly created page size
+      setPageSizeIndex(allPageSizes.length);
+    } else {
+      const layoutData = data as LayoutData;
+      const newCustomLayout = CustomPresetStorage.saveCustomLayout({
+        name: layoutData.name,
+        label: layoutData.name,
+        cellWidth: layoutData.cellWidth,
+        cellHeight: layoutData.cellHeight,
+      });
+      setCustomLayouts((prev) => [...prev, newCustomLayout]);
+      // Select the newly created layout
+      setLayoutIndex(allLayouts.length);
+    }
+    setCustomDialogOpen(false);
   };
 
   const formatDimension = (value: number): string => {
@@ -126,42 +203,36 @@ export function InitialSetupModal({
 
           <div className="grid gap-2">
             <Label htmlFor="pageSize">Page Size</Label>
-            <Select
-              value={pageSizeIndex.toString()}
-              onValueChange={(value) => setPageSizeIndex(parseInt(value))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select page size" />
-              </SelectTrigger>
-              <SelectContent>
-                {pageSizes.map((size, index) => (
-                  <SelectItem key={size.name} value={index.toString()}>
-                    {size.label} ({formatDimension(size.width)}×
-                    {formatDimension(size.height)})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <PresetSelector
+              items={allPageSizes}
+              selectedIndex={pageSizeIndex}
+              onSelect={setPageSizeIndex}
+              onCustomCreate={handleCreateCustomPageSize}
+              formatItemLabel={(size) =>
+                `${size.label} (${formatDimension(
+                  size.width
+                )}×${formatDimension(size.height)})`
+              }
+              placeholder="Select page size"
+              customCreateLabel="Create Custom Size..."
+            />
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="photoSize">Photo Size</Label>
-            <Select
-              value={layoutIndex.toString()}
-              onValueChange={(value) => setLayoutIndex(parseInt(value))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select photo size" />
-              </SelectTrigger>
-              <SelectContent>
-                {layoutPresets.map((layout, index) => (
-                  <SelectItem key={layout.id} value={index.toString()}>
-                    {layout.label} ({formatDimension(layout.cellWidth)}×
-                    {formatDimension(layout.cellHeight)})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <PresetSelector
+              items={allLayouts}
+              selectedIndex={layoutIndex}
+              onSelect={setLayoutIndex}
+              onCustomCreate={handleCreateCustomLayout}
+              formatItemLabel={(layout) =>
+                `${layout.label} (${formatDimension(
+                  layout.cellWidth
+                )}×${formatDimension(layout.cellHeight)})`
+              }
+              placeholder="Select photo size"
+              customCreateLabel="Create Custom Photo Size..."
+            />
           </div>
 
           <div className="flex justify-between items-center">
@@ -206,6 +277,13 @@ export function InitialSetupModal({
           <Button onClick={handleApply}>Start Creating</Button>
         </DialogFooter>
       </DialogContent>
+
+      <CustomPresetDialog
+        open={customDialogOpen}
+        onClose={() => setCustomDialogOpen(false)}
+        type={customDialogType}
+        onSave={handleSaveCustomPreset}
+      />
     </Dialog>
   );
 }
