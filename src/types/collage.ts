@@ -3,6 +3,7 @@ export interface PageSize {
   width: number; // in mm
   height: number; // in mm
   label: string;
+  margin: number; // in mm
 }
 
 export interface LayoutPreset {
@@ -11,7 +12,6 @@ export interface LayoutPreset {
   cellWidth: number; // in mm
   cellHeight: number; // in mm
   label: string;
-  margin: number; // in mm
 }
 
 export interface CollageImage {

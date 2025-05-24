@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { CollageState, ImageFitOption, CollageCell } from "@/types/collage";
 import { UnitConverter } from "@/lib/unit-converter";
+import { CanvasRenderer } from "@/lib/canvas-renderer";
 
 interface CollageCanvasProps {
   collageState: CollageState;
@@ -28,16 +29,14 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
 
     // Calculate actual screen DPI (default to 96 DPI if not available)
     const dpi = window.devicePixelRatio * 96;
-    
-    // Convert mm to pixels using screen DPI (1 inch = 25.4mm)
-    const mmToPixels = (mm: number) => (mm / 25.4) * dpi;
-    
-    // Convert mm to pixels using actual screen dimensions
-    const pxWidth = mmToPixels(pageSize.width);
-    const pxHeight = mmToPixels(pageSize.height);
-    const cellPxWidth = mmToPixels(layout.cellWidth);
-    const cellPxHeight = mmToPixels(layout.cellHeight);
-    const marginPx = mmToPixels(layout.margin);
+
+    // Use shared renderer for consistent dimensions
+    const canvasDimensions = CanvasRenderer.getCanvasDimensions(pageSize, dpi);
+    const cellDimensions = CanvasRenderer.getCellDimensions(
+      layout,
+      pageSize.margin,
+      dpi
+    );
 
     // Reset the selected image when the images change
     useEffect(() => {
@@ -67,9 +66,7 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
 
     // Get object-fit style based on image fit option
     const getObjectFitStyle = (imageId: string | null): ImageFitOption => {
-      if (!imageId) return "cover";
-      const image = images.find((img) => img.id === imageId);
-      return image?.fit || "cover";
+      return CanvasRenderer.getImageFitFromCollageImage(images, imageId);
     };
 
     // Get transform and container styles based on cell orientation
@@ -77,37 +74,12 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
       cell: CollageCell,
       objectFit: ImageFitOption
     ) => {
-      const orientation = cell.orientation || "auto";
-
-      if (orientation === "landscape") {
-        // For landscape orientation, we rotate 90 degrees and need to ensure
-        // the image still fills the container properly
-
-        // Calculate the scale factor needed after rotation
-        // When rotated 90°, width becomes height and height becomes width
-        const scaleRatio = cellPxWidth / cellPxHeight;
-
-        let scaleTransform = "";
-
-        if (objectFit === "cover" || objectFit === "fill") {
-          // For cover and fill modes, scale to ensure full coverage
-          scaleTransform = ` scale(${Math.max(scaleRatio, 1 / scaleRatio)})`;
-        } else if (objectFit === "contain") {
-          // For contain mode, scale to fit within bounds
-          scaleTransform = ` scale(${Math.min(scaleRatio, 1 / scaleRatio)})`;
-        }
-
-        return {
-          transform: `rotate(90deg)${scaleTransform}`,
-          transformOrigin: "center",
-        };
-      }
-
-      // For 'auto' and 'portrait', use normal orientation (no rotation)
-      return {
-        transform: "none",
-        transformOrigin: "center",
-      };
+      return CanvasRenderer.getOrientationStyles(
+        cell,
+        objectFit,
+        cellDimensions.cellWidth,
+        cellDimensions.cellHeight
+      );
     };
 
     // Format dimensions according to selected unit
@@ -122,11 +94,11 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
             ref={ref}
             className="bg-white shadow-md mx-auto"
             style={{
-              width: `${pxWidth}px`,
-              height: `${pxHeight}px`,
+              width: `${canvasDimensions.width}px`,
+              height: `${canvasDimensions.height}px`,
               position: "relative",
               overflow: "hidden",
-              padding: `${marginPx}px`,
+              padding: `${cellDimensions.margin}px`,
             }}
           >
             {/* Render the grid of cells */}
@@ -135,6 +107,11 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
                 const hasImage = cell.imageId !== null;
                 const image = images.find((img) => img.id === cell.imageId);
                 const objectFit = getObjectFitStyle(cell.imageId);
+                const cellPosition = CanvasRenderer.getCellPosition(
+                  rowIndex,
+                  colIndex,
+                  cellDimensions
+                );
 
                 return (
                   <div
@@ -145,10 +122,10 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
                       hasImage && "bg-center"
                     )}
                     style={{
-                      width: `${cellPxWidth}px`,
-                      height: `${cellPxHeight}px`,
-                      left: `${marginPx + colIndex * cellPxWidth}px`,
-                      top: `${marginPx + rowIndex * cellPxHeight}px`,
+                      width: `${cellPosition.width}px`,
+                      height: `${cellPosition.height}px`,
+                      left: `${cellPosition.left}px`,
+                      top: `${cellPosition.top}px`,
                     }}
                     onClick={() => handleCellClick(rowIndex, colIndex)}
                   >
@@ -157,12 +134,10 @@ export const CollageCanvas = forwardRef<HTMLDivElement, CollageCanvasProps>(
                         <img
                           src={image.src}
                           alt={image.name}
-                          className={cn("w-full h-full cursor-pointer", {
-                            "object-cover": objectFit === "cover",
-                            "object-contain": objectFit === "contain",
-                            "object-fill": objectFit === "fill",
-                            "object-none": objectFit === "original",
-                          })}
+                          className={cn(
+                            "w-full h-full cursor-pointer",
+                            CanvasRenderer.getObjectFitClass(objectFit)
+                          )}
                           style={{
                             objectPosition: "center center",
                             objectFit:

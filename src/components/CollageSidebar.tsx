@@ -101,7 +101,7 @@ export function CollageSidebar({ collageRef }: CollageSidebarProps) {
             <AccordionContent>
               <ExportPanel
                 collageRef={collageRef}
-                pageSize={collageState.pageSize}
+                collageState={collageState}
                 isEnabled={collageState.images.length > 0}
                 onToggleCuttingMarkers={toggleCuttingMarkers}
                 showCuttingMarkers={collageState.showCuttingMarkers}

@@ -1,28 +1,41 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { pageSizes, createCustomPageSize } from '@/data/page-sizes';
-import { layoutPresets, createCustomLayout } from '@/data/layout-presets';
-import { 
-  CollageState, 
-  CollageImage, 
-  CollageCell, 
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  ReactNode,
+} from "react";
+import { pageSizes, createCustomPageSize } from "@/data/page-sizes";
+import { layoutPresets, createCustomLayout } from "@/data/layout-presets";
+import {
+  CollageState,
+  CollageImage,
+  CollageCell,
   ImageOrientation,
   SpaceOptimization,
   MeasurementUnit,
   LayoutCalculation,
   PageSize,
-  LayoutPreset
-} from '@/types/collage';
-import { toast } from '@/hooks/use-toast';
+  LayoutPreset,
+} from "@/types/collage";
+import { toast } from "@/hooks/use-toast";
 
 interface CollageContextType {
   collageState: CollageState;
   updatePageSize: (pageSizeIndex: number) => void;
   updateLayout: (layoutIndex: number) => void;
   handleImagesAdded: (newImages: CollageImage[]) => void;
-  assignImageToCell: (rowIndex: number, colIndex: number, imageId: string) => void;
+  assignImageToCell: (
+    rowIndex: number,
+    colIndex: number,
+    imageId: string
+  ) => void;
   removeImage: (imageId: string) => void;
   updateImageCount: (imageId: string, count: number) => void;
-  updateImageSettings: (imageId: string, updates: Partial<CollageImage>) => void;
+  updateImageSettings: (
+    imageId: string,
+    updates: Partial<CollageImage>
+  ) => void;
   rearrangeCollage: () => void;
   distributeEqually: () => void;
   setSpaceOptimization: (value: SpaceOptimization) => void;
@@ -30,8 +43,8 @@ interface CollageContextType {
   resetCanvas: () => void;
   clearAll: () => void;
   setUnit: (unit: MeasurementUnit) => void;
-  createCustomPageSize: (width: number, height: number) => void;
-  createCustomLayout: (cellWidth: number, cellHeight: number, margin: number) => void;
+  createCustomPageSize: (width: number, height: number, margin: number) => void;
+  createCustomLayout: (cellWidth: number, cellHeight: number) => void;
 }
 
 const CollageContext = createContext<CollageContextType | undefined>(undefined);
@@ -46,44 +59,44 @@ function calculateGridDimensions(
   spaceOptimization: SpaceOptimization
 ): LayoutCalculation {
   // Calculate usable area by removing margins from all sides
-  const usableWidth = pageWidth - (margin * 2);
-  const usableHeight = pageHeight - (margin * 2);
-  
+  const usableWidth = pageWidth - margin * 2;
+  const usableHeight = pageHeight - margin * 2;
+
   // Calculate portrait orientation (cellWidth x cellHeight)
   const portraitColumns = Math.floor(usableWidth / cellWidth);
   const portraitRows = Math.floor(usableHeight / cellHeight);
   const portraitTotal = portraitColumns * portraitRows;
-  
+
   // For loose fit, we only use one orientation
-  if (spaceOptimization === 'loose') {
+  if (spaceOptimization === "loose") {
     return {
       rows: portraitRows,
       columns: portraitColumns,
-      orientation: 'portrait',
-      totalCells: portraitTotal
+      orientation: "portrait",
+      totalCells: portraitTotal,
     };
   }
-  
+
   // For tight fit, try both orientations to see which gives more cells
   // Calculate landscape orientation (cellHeight x cellWidth) - swapping dimensions
   const landscapeColumns = Math.floor(usableWidth / cellHeight);
   const landscapeRows = Math.floor(usableHeight / cellWidth);
   const landscapeTotal = landscapeColumns * landscapeRows;
-  
+
   if (landscapeTotal > portraitTotal) {
     return {
       rows: landscapeRows,
       columns: landscapeColumns,
-      orientation: 'landscape',
-      totalCells: landscapeTotal
+      orientation: "landscape",
+      totalCells: landscapeTotal,
     };
   }
-  
+
   return {
     rows: portraitRows,
     columns: portraitColumns,
-    orientation: 'portrait',
-    totalCells: portraitTotal
+    orientation: "portrait",
+    totalCells: portraitTotal,
   };
 }
 
@@ -96,8 +109,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     initialPageSize.height,
     initialLayout.cellWidth,
     initialLayout.cellHeight,
-    initialLayout.margin,
-    'loose'
+    initialPageSize.margin,
+    "loose"
   );
 
   const [collageState, setCollageState] = useState<CollageState>({
@@ -107,420 +120,448 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     cells: [],
     rows: initialGrid.rows,
     columns: initialGrid.columns,
-    spaceOptimization: 'loose',
+    spaceOptimization: "loose",
     showCuttingMarkers: true,
-    selectedUnit: 'mm'
+    selectedUnit: "mm",
   });
 
   const updatePageSize = (pageSizeIndex: number) => {
     const newPageSize = pageSizes[pageSizeIndex];
-    
-    setCollageState(prev => {
+
+    setCollageState((prev) => {
       // Recalculate grid dimensions based on new page size
       const layout = calculateGridDimensions(
         newPageSize.width,
         newPageSize.height,
         prev.layout.cellWidth,
         prev.layout.cellHeight,
-        prev.layout.margin,
+        newPageSize.margin,
         prev.spaceOptimization
       );
-      
+
       return {
         ...prev,
         pageSize: newPageSize,
         rows: layout.rows,
-        columns: layout.columns
+        columns: layout.columns,
       };
     });
-    
+
     // After changing page size, we need to reinitialize the cells
     initializeCells();
-    
-    toast({ 
+
+    toast({
       title: "Page size updated",
-      description: `Changed to ${newPageSize.label}`
+      description: `Changed to ${newPageSize.label}`,
     });
   };
 
-  const createCustomPageSizeImpl = (width: number, height: number) => {
-    const customSize = createCustomPageSize(width, height);
-    
-    setCollageState(prev => {
+  const createCustomPageSizeImpl = (
+    width: number,
+    height: number,
+    margin: number
+  ) => {
+    const customSize = createCustomPageSize(width, height, margin);
+
+    setCollageState((prev) => {
       // Recalculate grid dimensions based on custom page size
       const layout = calculateGridDimensions(
         width,
         height,
         prev.layout.cellWidth,
         prev.layout.cellHeight,
-        prev.layout.margin,
+        customSize.margin,
         prev.spaceOptimization
       );
-      
+
       return {
         ...prev,
         pageSize: customSize,
         rows: layout.rows,
-        columns: layout.columns
+        columns: layout.columns,
       };
     });
-    
+
     // After changing page size, we need to reinitialize the cells
     initializeCells();
-    
-    toast({ 
+
+    toast({
       title: "Custom page size created",
-      description: `Size set to ${width}×${height}mm`
+      description: `Size set to ${width}×${height}mm`,
     });
   };
 
   const updateLayout = (layoutIndex: number) => {
     const newLayout = layoutPresets[layoutIndex];
-    
-    setCollageState(prev => {
+
+    setCollageState((prev) => {
       // Calculate new grid dimensions based on the selected layout
       const layout = calculateGridDimensions(
         prev.pageSize.width,
         prev.pageSize.height,
         newLayout.cellWidth,
         newLayout.cellHeight,
-        newLayout.margin,
+        prev.pageSize.margin,
         prev.spaceOptimization
       );
-      
+
       // Create a new cells grid based on the calculated dimensions
       const newCells: CollageCell[][] = Array(layout.rows)
         .fill(null)
-        .map((_, rowIndex) => 
+        .map((_, rowIndex) =>
           Array(layout.columns)
             .fill(null)
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
               imageId: null,
-              orientation: 'auto'
+              orientation: "auto",
             }))
         );
-      
+
       return {
         ...prev,
         layout: newLayout,
         rows: layout.rows,
         columns: layout.columns,
-        cells: newCells
+        cells: newCells,
       };
     });
-    
-    toast({ 
-      title: "Layout updated", 
-      description: `Changed to ${newLayout.label}`
+
+    toast({
+      title: "Layout updated",
+      description: `Changed to ${newLayout.label}`,
     });
   };
 
-  const createCustomLayoutImpl = (cellWidth: number, cellHeight: number, margin: number) => {
-    const customLayout = createCustomLayout(cellWidth, cellHeight, margin);
-    
-    setCollageState(prev => {
+  const createCustomLayoutImpl = (cellWidth: number, cellHeight: number) => {
+    const customLayout = createCustomLayout(cellWidth, cellHeight);
+
+    setCollageState((prev) => {
       // Calculate new grid dimensions based on the custom layout
       const layout = calculateGridDimensions(
         prev.pageSize.width,
         prev.pageSize.height,
         cellWidth,
         cellHeight,
-        margin,
+        prev.pageSize.margin,
         prev.spaceOptimization
       );
-      
+
       // Create a new cells grid based on the calculated dimensions
       const newCells: CollageCell[][] = Array(layout.rows)
         .fill(null)
-        .map((_, rowIndex) => 
+        .map((_, rowIndex) =>
           Array(layout.columns)
             .fill(null)
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
               imageId: null,
-              orientation: 'auto' as ImageOrientation
+              orientation: "auto" as ImageOrientation,
             }))
         );
-      
+
       return {
         ...prev,
         layout: customLayout,
         rows: layout.rows,
         columns: layout.columns,
-        cells: newCells
+        cells: newCells,
       };
     });
-    
-    toast({ 
-      title: "Custom layout created", 
-      description: `Photo size set to ${cellWidth}×${cellHeight}mm with ${margin}mm margin`
+
+    toast({
+      title: "Custom layout created",
+      description: `Photo size set to ${cellWidth}×${cellHeight}mm`,
     });
   };
 
   const handleImagesAdded = (newImages: CollageImage[]) => {
-    setCollageState(prev => {
-      const updatedImages = [...prev.images, ...newImages.map(img => ({
-        ...img,
-        count: 1 // Initialize count to 1 for each image
-      }))];
-      
+    setCollageState((prev) => {
+      const updatedImages = [
+        ...prev.images,
+        ...newImages.map((img) => ({
+          ...img,
+          count: 1, // Initialize count to 1 for each image
+        })),
+      ];
+
       // If there's only one image, auto-fill all cells with that image
       if (prev.images.length === 0 && newImages.length === 1) {
-        const updatedCells = prev.cells.map(row =>
-          row.map(cell => ({
+        const updatedCells = prev.cells.map((row) =>
+          row.map((cell) => ({
             ...cell,
             imageId: newImages[0].id,
-            orientation: 'auto' as ImageOrientation
+            orientation: "auto" as ImageOrientation,
           }))
         );
-        
+
         return {
           ...prev,
           images: updatedImages,
-          cells: updatedCells
+          cells: updatedCells,
         };
       }
-      
+
       return {
         ...prev,
-        images: updatedImages
+        images: updatedImages,
       };
     });
-    
-    toast({ 
-      title: "Images added", 
-      description: `${newImages.length} new image(s) added`
+
+    toast({
+      title: "Images added",
+      description: `${newImages.length} new image(s) added`,
     });
   };
 
-  const assignImageToCell = (rowIndex: number, colIndex: number, imageId: string) => {
-    setCollageState(prev => {
+  const assignImageToCell = (
+    rowIndex: number,
+    colIndex: number,
+    imageId: string
+  ) => {
+    setCollageState((prev) => {
       const newCells = [...prev.cells];
       // Find the image to get its orientation
-      const image = prev.images.find(img => img.id === imageId);
-      
-      if (rowIndex >= 0 && rowIndex < newCells.length && 
-          colIndex >= 0 && colIndex < newCells[rowIndex].length) {
+      const image = prev.images.find((img) => img.id === imageId);
+
+      if (
+        rowIndex >= 0 &&
+        rowIndex < newCells.length &&
+        colIndex >= 0 &&
+        colIndex < newCells[rowIndex].length
+      ) {
         newCells[rowIndex][colIndex] = {
           ...newCells[rowIndex][colIndex],
           imageId,
-          orientation: image?.orientation || 'auto'
+          orientation: image?.orientation || "auto",
         };
       }
-      
+
       return {
         ...prev,
-        cells: newCells
+        cells: newCells,
       };
     });
   };
 
   const removeImage = (imageId: string) => {
-    setCollageState(prev => {
+    setCollageState((prev) => {
       // Remove image from images array
-      const updatedImages = prev.images.filter(img => img.id !== imageId);
-      
+      const updatedImages = prev.images.filter((img) => img.id !== imageId);
+
       // Clear this image from any cells
-      const updatedCells = prev.cells.map(row =>
-        row.map(cell => 
-          cell.imageId === imageId 
-            ? { ...cell, imageId: null, orientation: 'auto' as ImageOrientation } 
+      const updatedCells = prev.cells.map((row) =>
+        row.map((cell) =>
+          cell.imageId === imageId
+            ? {
+                ...cell,
+                imageId: null,
+                orientation: "auto" as ImageOrientation,
+              }
             : cell
         )
       );
-      
+
       return {
         ...prev,
         images: updatedImages,
-        cells: updatedCells
+        cells: updatedCells,
       };
     });
-    
-    toast({ 
-      title: "Image removed", 
-      description: "Image removed from collage"
+
+    toast({
+      title: "Image removed",
+      description: "Image removed from collage",
     });
   };
 
   const updateImageCount = (imageId: string, count: number) => {
-    setCollageState(prev => {
-      const updatedImages = prev.images.map(img => 
+    setCollageState((prev) => {
+      const updatedImages = prev.images.map((img) =>
         img.id === imageId ? { ...img, count } : img
       );
-      
+
       return {
         ...prev,
-        images: updatedImages
+        images: updatedImages,
       };
     });
   };
 
-  const updateImageSettings = (imageId: string, updates: Partial<CollageImage>) => {
-    setCollageState(prev => {
+  const updateImageSettings = (
+    imageId: string,
+    updates: Partial<CollageImage>
+  ) => {
+    setCollageState((prev) => {
       // Update the image settings
-      const updatedImages = prev.images.map(img => 
+      const updatedImages = prev.images.map((img) =>
         img.id === imageId ? { ...img, ...updates } : img
       );
-      
+
       // If orientation was updated, also update cells using this image
       if (updates.orientation) {
-        const updatedCells = prev.cells.map(row =>
-          row.map(cell => 
-            cell.imageId === imageId 
-              ? { ...cell, orientation: updates.orientation as ImageOrientation } 
+        const updatedCells = prev.cells.map((row) =>
+          row.map((cell) =>
+            cell.imageId === imageId
+              ? {
+                  ...cell,
+                  orientation: updates.orientation as ImageOrientation,
+                }
               : cell
           )
         );
-        
+
         return {
           ...prev,
           images: updatedImages,
-          cells: updatedCells
+          cells: updatedCells,
         };
       }
-      
+
       return {
         ...prev,
-        images: updatedImages
+        images: updatedImages,
       };
     });
   };
 
   const setSpaceOptimization = (value: SpaceOptimization) => {
-    setCollageState(prev => {
+    setCollageState((prev) => {
       // Recalculate grid dimensions using the new optimization setting
       const layout = calculateGridDimensions(
         prev.pageSize.width,
         prev.pageSize.height,
         prev.layout.cellWidth,
         prev.layout.cellHeight,
-        prev.layout.margin,
+        prev.pageSize.margin,
         value
       );
-      
+
       // Create a new cells grid based on the calculated dimensions
       const newCells: CollageCell[][] = Array(layout.rows)
         .fill(null)
-        .map((_, rowIndex) => 
+        .map((_, rowIndex) =>
           Array(layout.columns)
             .fill(null)
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
               imageId: null,
-              orientation: 'auto' as ImageOrientation
+              orientation: "auto" as ImageOrientation,
             }))
         );
-      
+
       return {
         ...prev,
         spaceOptimization: value,
         rows: layout.rows,
         columns: layout.columns,
-        cells: newCells
+        cells: newCells,
       };
     });
-    
-    toast({ 
-      title: "Layout mode updated", 
-      description: value === 'loose' ? "Using same orientation for all images" : "Mixed orientations for optimal space usage"
+
+    toast({
+      title: "Layout mode updated",
+      description:
+        value === "loose"
+          ? "Using same orientation for all images"
+          : "Mixed orientations for optimal space usage",
     });
   };
 
   const toggleCuttingMarkers = (show: boolean) => {
-    setCollageState(prev => ({
+    setCollageState((prev) => ({
       ...prev,
-      showCuttingMarkers: show
+      showCuttingMarkers: show,
     }));
   };
 
   const resetCanvas = () => {
-    setCollageState(prev => {
+    setCollageState((prev) => {
       // Keep the images but reset all cells
       const newCells: CollageCell[][] = Array(prev.rows)
         .fill(null)
-        .map((_, rowIndex) => 
+        .map((_, rowIndex) =>
           Array(prev.columns)
             .fill(null)
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
               imageId: null,
-              orientation: 'auto' as ImageOrientation
+              orientation: "auto" as ImageOrientation,
             }))
         );
-      
+
       // Also reset all image counts to zero
-      const resetImages = prev.images.map(img => ({
+      const resetImages = prev.images.map((img) => ({
         ...img,
-        count: 0
+        count: 0,
       }));
-      
+
       return {
         ...prev,
         cells: newCells,
-        images: resetImages
+        images: resetImages,
       };
     });
-    
-    toast({ 
-      title: "Canvas reset", 
-      description: "All photos removed from canvas"
+
+    toast({
+      title: "Canvas reset",
+      description: "All photos removed from canvas",
     });
   };
 
   const clearAll = () => {
-    setCollageState(prev => {
+    setCollageState((prev) => {
       // Reset everything
       const newCells: CollageCell[][] = Array(prev.rows)
         .fill(null)
-        .map((_, rowIndex) => 
+        .map((_, rowIndex) =>
           Array(prev.columns)
             .fill(null)
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
               imageId: null,
-              orientation: 'auto' as ImageOrientation
+              orientation: "auto" as ImageOrientation,
             }))
         );
-      
+
       return {
         ...prev,
         cells: newCells,
-        images: []
+        images: [],
       };
     });
-    
-    toast({ 
-      title: "All cleared", 
-      description: "All photos removed from project"
+
+    toast({
+      title: "All cleared",
+      description: "All photos removed from project",
     });
   };
 
   const setUnit = (unit: MeasurementUnit) => {
-    setCollageState(prev => ({
+    setCollageState((prev) => ({
       ...prev,
-      selectedUnit: unit
+      selectedUnit: unit,
     }));
   };
 
   const distributeEqually = () => {
-    setCollageState(prev => {
+    setCollageState((prev) => {
       const totalCells = prev.rows * prev.columns;
-      const activeImages = prev.images.filter(img => img.count !== 0);
-      
+      const activeImages = prev.images.filter((img) => img.count !== 0);
+
       // If no images, do nothing
       if (activeImages.length === 0) {
         toast({
           title: "No images to distribute",
-          description: "Add images first"
+          description: "Add images first",
         });
         return prev;
       }
-      
+
       // Calculate cells per image
       const cellsPerImage = Math.floor(totalCells / activeImages.length);
       const remainder = totalCells % activeImages.length;
-      
+
       // Update image counts
       const updatedImages = prev.images.map((img, index) => {
         if (img.count === 0) return img;
@@ -528,131 +569,135 @@ export function CollageProvider({ children }: { children: ReactNode }) {
         const extraCell = index < remainder ? 1 : 0;
         return {
           ...img,
-          count: cellsPerImage + extraCell
+          count: cellsPerImage + extraCell,
         };
       });
-      
-      toast({ 
-        title: "Distributed equally", 
-        description: `${cellsPerImage} cells per image (${totalCells} total)`
+
+      toast({
+        title: "Distributed equally",
+        description: `${cellsPerImage} cells per image (${totalCells} total)`,
       });
-      
+
       return {
         ...prev,
-        images: updatedImages
+        images: updatedImages,
       };
     });
   };
 
   const rearrangeCollage = () => {
-    setCollageState(prev => {
+    setCollageState((prev) => {
       const totalCells = prev.rows * prev.columns;
-      
+
       // Create a new cells grid
       const newCells: CollageCell[][] = Array(prev.rows)
         .fill(null)
-        .map((_, rowIndex) => 
+        .map((_, rowIndex) =>
           Array(prev.columns)
             .fill(null)
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
               imageId: null,
-              orientation: prev.spaceOptimization === 'tight' && colIndex % 2 === 0 ? 'landscape' : 'portrait'
+              orientation:
+                prev.spaceOptimization === "tight" && colIndex % 2 === 0
+                  ? "landscape"
+                  : "portrait",
             }))
         );
-      
+
       // Collect all images with their counts
-      const imagePool: { id: string, orientation: ImageOrientation }[] = [];
-      prev.images.forEach(image => {
+      const imagePool: { id: string; orientation: ImageOrientation }[] = [];
+      prev.images.forEach((image) => {
         if (image.count && image.count > 0) {
           // Add image to the pool based on its count
           for (let i = 0; i < Math.min(image.count, totalCells); i++) {
-            let orientation: ImageOrientation = image.orientation || 'auto';
-            
+            let orientation: ImageOrientation = image.orientation || "auto";
+
             // In tight fit mode, optimize space if auto orientation
-            if (prev.spaceOptimization === 'tight' && orientation === 'auto') {
+            if (prev.spaceOptimization === "tight" && orientation === "auto") {
               // Alternate orientations
-              orientation = i % 2 === 0 ? 'portrait' : 'landscape';
+              orientation = i % 2 === 0 ? "portrait" : "landscape";
             }
-            
+
             imagePool.push({
               id: image.id,
-              orientation
+              orientation,
             });
           }
         }
       });
-      
+
       // Fill cells with images SEQUENTIALLY (no shuffling)
       let poolIndex = 0;
       for (let rowIndex = 0; rowIndex < prev.rows; rowIndex++) {
         for (let colIndex = 0; colIndex < prev.columns; colIndex++) {
           if (poolIndex < imagePool.length) {
             newCells[rowIndex][colIndex].imageId = imagePool[poolIndex].id;
-            newCells[rowIndex][colIndex].orientation = imagePool[poolIndex].orientation;
+            newCells[rowIndex][colIndex].orientation =
+              imagePool[poolIndex].orientation;
             poolIndex++;
           }
         }
       }
-      
-      toast({ 
-        title: "Collage arranged", 
-        description: `Applied image quantities to the layout (${poolIndex} of ${totalCells} cells filled)`
+
+      toast({
+        title: "Collage arranged",
+        description: `Applied image quantities to the layout (${poolIndex} of ${totalCells} cells filled)`,
       });
-      
+
       return {
         ...prev,
-        cells: newCells
+        cells: newCells,
       };
     });
   };
 
   const initializeCells = useCallback(() => {
-    setCollageState(prev => {
+    setCollageState((prev) => {
       // Calculate grid dimensions
       const layout = calculateGridDimensions(
         prev.pageSize.width,
         prev.pageSize.height,
         prev.layout.cellWidth,
         prev.layout.cellHeight,
-        prev.layout.margin,
+        prev.pageSize.margin,
         prev.spaceOptimization
       );
-      
+
       // Create a new cells grid
       const newCells: CollageCell[][] = Array(layout.rows)
         .fill(null)
-        .map((_, rowIndex) => 
+        .map((_, rowIndex) =>
           Array(layout.columns)
             .fill(null)
             .map((_, colIndex) => ({
               id: `cell-${rowIndex}-${colIndex}`,
               imageId: null,
-              orientation: 'auto' as ImageOrientation
+              orientation: "auto" as ImageOrientation,
             }))
         );
-      
+
       // If we have exactly one image, fill all cells with it
       if (prev.images.length === 1) {
         return {
           ...prev,
           rows: layout.rows,
           columns: layout.columns,
-          cells: newCells.map(row => 
-            row.map(cell => ({
+          cells: newCells.map((row) =>
+            row.map((cell) => ({
               ...cell,
               imageId: prev.images[0].id,
-              orientation: prev.images[0].orientation || 'auto'
+              orientation: prev.images[0].orientation || "auto",
             }))
-          )
+          ),
         };
       }
-      
+
       return {
         ...prev,
         rows: layout.rows,
         columns: layout.columns,
-        cells: newCells
+        cells: newCells,
       };
     });
   }, []);
@@ -663,25 +708,27 @@ export function CollageProvider({ children }: { children: ReactNode }) {
   });
 
   return (
-    <CollageContext.Provider value={{ 
-      collageState, 
-      updatePageSize, 
-      updateLayout, 
-      handleImagesAdded, 
-      assignImageToCell,
-      removeImage,
-      updateImageCount,
-      updateImageSettings,
-      rearrangeCollage,
-      distributeEqually,
-      setSpaceOptimization,
-      toggleCuttingMarkers,
-      resetCanvas,
-      clearAll,
-      setUnit,
-      createCustomPageSize: createCustomPageSizeImpl,
-      createCustomLayout: createCustomLayoutImpl
-    }}>
+    <CollageContext.Provider
+      value={{
+        collageState,
+        updatePageSize,
+        updateLayout,
+        handleImagesAdded,
+        assignImageToCell,
+        removeImage,
+        updateImageCount,
+        updateImageSettings,
+        rearrangeCollage,
+        distributeEqually,
+        setSpaceOptimization,
+        toggleCuttingMarkers,
+        resetCanvas,
+        clearAll,
+        setUnit,
+        createCustomPageSize: createCustomPageSizeImpl,
+        createCustomLayout: createCustomLayoutImpl,
+      }}
+    >
       {children}
     </CollageContext.Provider>
   );
@@ -690,7 +737,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
 export const useCollage = () => {
   const context = useContext(CollageContext);
   if (context === undefined) {
-    throw new Error('useCollage must be used within a CollageProvider');
+    throw new Error("useCollage must be used within a CollageProvider");
   }
   return context;
 };

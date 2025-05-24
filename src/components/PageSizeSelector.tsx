@@ -18,7 +18,7 @@ interface PageSizeSelectorProps {
   pageSizes: PageSize[];
   selectedPageSize: PageSize;
   onSelect: (index: number) => void;
-  onCustomSize: (width: number, height: number) => void;
+  onCustomSize: (width: number, height: number, margin: number) => void;
   selectedUnit: MeasurementUnit;
   onUnitChange: (unit: MeasurementUnit) => void;
 }
@@ -34,6 +34,7 @@ export function PageSizeSelector({
   const [isCustom, setIsCustom] = useState(false);
   const [customWidth, setCustomWidth] = useState("");
   const [customHeight, setCustomHeight] = useState("");
+  const [customMargin, setCustomMargin] = useState("");
 
   // Format dimensions according to selected unit
   const formatDimension = (value: number): string => {
@@ -49,6 +50,9 @@ export function PageSizeSelector({
       // Parse the custom dimensions with their units
       const widthData = UnitConverter.parseDimensionString(customWidth);
       const heightData = UnitConverter.parseDimensionString(customHeight);
+      const marginData = UnitConverter.parseDimensionString(
+        customMargin || "5mm"
+      );
 
       // Convert to mm (internal working unit)
       const widthInMm = UnitConverter.convertToMm(
@@ -59,9 +63,13 @@ export function PageSizeSelector({
         heightData.value,
         heightData.unit
       );
+      const marginInMm = UnitConverter.convertToMm(
+        marginData.value,
+        marginData.unit
+      );
 
-      if (widthInMm > 0 && heightInMm > 0) {
-        onCustomSize(widthInMm, heightInMm);
+      if (widthInMm > 0 && heightInMm > 0 && marginInMm >= 0) {
+        onCustomSize(widthInMm, heightInMm, marginInMm);
         setIsCustom(false);
       }
     } catch (error) {
@@ -147,6 +155,18 @@ export function PageSizeSelector({
               />
             </div>
           </div>
+          <div>
+            <Label htmlFor="custom-margin" className="text-xs">
+              Margin
+            </Label>
+            <Input
+              id="custom-margin"
+              value={customMargin}
+              onChange={(e) => setCustomMargin(e.target.value)}
+              placeholder={`e.g., 5mm, 0.5cm, 0.2in`}
+              className="h-9"
+            />
+          </div>
           <div className="flex justify-end space-x-2">
             <Button
               variant="outline"
@@ -191,6 +211,7 @@ export function PageSizeSelector({
           Selected size: {formatDimension(selectedPageSize.width)}×
           {formatDimension(selectedPageSize.height)}
         </p>
+        <p>Margin: {formatDimension(selectedPageSize.margin)}</p>
       </div>
     </div>
   );

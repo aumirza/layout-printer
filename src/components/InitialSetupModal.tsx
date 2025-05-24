@@ -52,8 +52,8 @@ export function InitialSetupModal({
       const layout = layoutPresets[layoutIndex];
 
       // Calculate usable area by removing margins
-      const usableWidth = pageSize.width - layout.margin * 2;
-      const usableHeight = pageSize.height - layout.margin * 2;
+      const usableWidth = pageSize.width - pageSize.margin * 2;
+      const usableHeight = pageSize.height - pageSize.margin * 2;
 
       // Calculate cells based on layout dimensions
       const columns = Math.floor(usableWidth / layout.cellWidth);

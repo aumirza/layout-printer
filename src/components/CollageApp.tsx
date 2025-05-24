@@ -16,16 +16,16 @@ export function CollageApp() {
     <div className="flex flex-col h-screen overflow-hidden">
       <Header />
 
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-49px)] overflow-hidden">
-        <CollageSidebar collageRef={collageRef} />
+      <CanvasControlsProvider>
+        <div className="flex flex-col lg:flex-row h-[calc(100vh-49px)] overflow-hidden">
+          <CollageSidebar collageRef={collageRef} />
 
-        <CanvasControlsProvider>
           <div className="w-full lg:w-3/4 bg-muted flex-1 flex flex-col">
             <CanvasControls />
             <CanvasContainer collageRef={collageRef} />
           </div>
-        </CanvasControlsProvider>
-      </div>
+        </div>
+      </CanvasControlsProvider>
     </div>
   );
 }

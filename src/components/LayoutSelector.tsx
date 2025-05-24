@@ -1,19 +1,29 @@
-import { useState } from 'react';
-import { Check, Edit2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { LayoutPreset, MeasurementUnit, SpaceOptimization } from '@/types/collage';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UnitConverter } from '@/lib/unit-converter';
+import { useState } from "react";
+import { Check, Edit2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  LayoutPreset,
+  MeasurementUnit,
+  SpaceOptimization,
+} from "@/types/collage";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { UnitConverter } from "@/lib/unit-converter";
 
 interface LayoutSelectorProps {
   layouts: LayoutPreset[];
   selectedLayout: LayoutPreset;
   onSelect: (index: number) => void;
-  onCustomLayout: (cellWidth: number, cellHeight: number, margin: number) => void;
+  onCustomLayout: (cellWidth: number, cellHeight: number) => void;
   selectedUnit: MeasurementUnit;
   spaceOptimization: SpaceOptimization;
   onSpaceOptimizationChange: (value: SpaceOptimization) => void;
@@ -28,13 +38,12 @@ export function LayoutSelector({
   selectedUnit,
   spaceOptimization,
   onSpaceOptimizationChange,
-  cellCount
+  cellCount,
 }: LayoutSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isCustom, setIsCustom] = useState(false);
   const [customWidth, setCustomWidth] = useState("");
   const [customHeight, setCustomHeight] = useState("");
-  const [customMargin, setCustomMargin] = useState("");
 
   // Format dimensions according to selected unit
   const formatDimension = (value: number): string => {
@@ -46,15 +55,19 @@ export function LayoutSelector({
       // Parse the custom dimensions with their units
       const widthData = UnitConverter.parseDimensionString(customWidth);
       const heightData = UnitConverter.parseDimensionString(customHeight);
-      const marginData = UnitConverter.parseDimensionString(customMargin);
-      
+
       // Convert to mm (internal working unit)
-      const widthInMm = UnitConverter.convertToMm(widthData.value, widthData.unit);
-      const heightInMm = UnitConverter.convertToMm(heightData.value, heightData.unit);
-      const marginInMm = UnitConverter.convertToMm(marginData.value, marginData.unit);
-      
-      if (widthInMm > 0 && heightInMm > 0 && marginInMm >= 0) {
-        onCustomLayout(widthInMm, heightInMm, marginInMm);
+      const widthInMm = UnitConverter.convertToMm(
+        widthData.value,
+        widthData.unit
+      );
+      const heightInMm = UnitConverter.convertToMm(
+        heightData.value,
+        heightData.unit
+      );
+
+      if (widthInMm > 0 && heightInMm > 0) {
+        onCustomLayout(widthInMm, heightInMm);
         setIsCustom(false);
       }
     } catch (error) {
@@ -65,12 +78,14 @@ export function LayoutSelector({
   return (
     <div className="space-y-2">
       <h2 className="text-lg font-medium">Photo Size</h2>
-      
+
       {isCustom ? (
         <div className="space-y-3 p-3 border rounded-lg">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label htmlFor="custom-cell-width" className="text-xs">Width</Label>
+              <Label htmlFor="custom-cell-width" className="text-xs">
+                Width
+              </Label>
               <Input
                 id="custom-cell-width"
                 value={customWidth}
@@ -80,7 +95,9 @@ export function LayoutSelector({
               />
             </div>
             <div>
-              <Label htmlFor="custom-cell-height" className="text-xs">Height</Label>
+              <Label htmlFor="custom-cell-height" className="text-xs">
+                Height
+              </Label>
               <Input
                 id="custom-cell-height"
                 value={customHeight}
@@ -90,16 +107,6 @@ export function LayoutSelector({
               />
             </div>
           </div>
-          <div>
-            <Label htmlFor="custom-margin" className="text-xs">Margin</Label>
-            <Input
-              id="custom-margin"
-              value={customMargin}
-              onChange={(e) => setCustomMargin(e.target.value)}
-              placeholder={`e.g., 5mm, 0.5cm, 0.2in`}
-              className="h-9"
-            />
-          </div>
           <div className="flex justify-end space-x-2">
             <Button
               variant="outline"
@@ -108,10 +115,7 @@ export function LayoutSelector({
             >
               Cancel
             </Button>
-            <Button
-              size="sm"
-              onClick={handleCustomLayoutSubmit}
-            >
+            <Button size="sm" onClick={handleCustomLayoutSubmit}>
               Apply
             </Button>
           </div>
@@ -124,11 +128,13 @@ export function LayoutSelector({
               if (value === "custom") {
                 setIsCustom(true);
               } else {
-                const layoutIndex = layouts.findIndex(layout => layout.name === value);
+                const layoutIndex = layouts.findIndex(
+                  (layout) => layout.name === value
+                );
                 if (layoutIndex !== -1) {
                   onSelect(layoutIndex);
                 }
-                setIsCustom(false); 
+                setIsCustom(false);
               }
             }}
           >
@@ -138,7 +144,8 @@ export function LayoutSelector({
             <SelectContent>
               {layouts.map((layout, index) => (
                 <SelectItem key={layout.name} value={layout.name}>
-                  {layout.name} ({formatDimension(layout.cellWidth)} x {formatDimension(layout.cellHeight)})
+                  {layout.name} ({formatDimension(layout.cellWidth)} x{" "}
+                  {formatDimension(layout.cellHeight)})
                 </SelectItem>
               ))}
               <SelectItem value="custom">
@@ -151,35 +158,47 @@ export function LayoutSelector({
           </Select>
         </div>
       )}
-      
+
       <div className="mt-4 space-y-3">
         <div className="text-sm text-muted-foreground">
-          <p>Unit size: {formatDimension(selectedLayout.cellWidth)}×{formatDimension(selectedLayout.cellHeight)}</p>
-          <p>Margin: {formatDimension(selectedLayout.margin)}</p>
+          <p>
+            Unit size: {formatDimension(selectedLayout.cellWidth)}×
+            {formatDimension(selectedLayout.cellHeight)}
+          </p>
         </div>
-        
+
         <div className="flex justify-between items-center">
           <div>
-            <Label htmlFor="fitType" className="text-sm">Photo Arrangement</Label>
+            <Label htmlFor="fitType" className="text-sm">
+              Photo Arrangement
+            </Label>
             <p className="text-xs text-muted-foreground mt-1">
-              {spaceOptimization === 'loose' 
-                ? 'Loose Fit: Consistent orientation'
-                : 'Tight Fit: Mixed orientations'}
+              {spaceOptimization === "loose"
+                ? "Loose Fit: Consistent orientation"
+                : "Tight Fit: Mixed orientations"}
             </p>
           </div>
           <div className="flex items-center space-x-2">
-            <Label htmlFor="fit-toggle" className="text-xs">Loose</Label>
-            <Switch 
-              id="fit-toggle" 
-              checked={spaceOptimization === 'tight'} 
-              onCheckedChange={(checked) => onSpaceOptimizationChange(checked ? 'tight' : 'loose')}
+            <Label htmlFor="fit-toggle" className="text-xs">
+              Loose
+            </Label>
+            <Switch
+              id="fit-toggle"
+              checked={spaceOptimization === "tight"}
+              onCheckedChange={(checked) =>
+                onSpaceOptimizationChange(checked ? "tight" : "loose")
+              }
             />
-            <Label htmlFor="fit-toggle" className="text-xs">Tight</Label>
+            <Label htmlFor="fit-toggle" className="text-xs">
+              Tight
+            </Label>
           </div>
         </div>
-        
+
         <div className="bg-muted/30 rounded-md p-2 text-sm">
-          <p>Estimated layout: <strong>{cellCount}</strong> photo cells</p>
+          <p>
+            Estimated layout: <strong>{cellCount}</strong> photo cells
+          </p>
         </div>
       </div>
     </div>
