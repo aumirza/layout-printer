@@ -66,7 +66,7 @@ export function LayoutSelector() {
 
   return (
     <div className="space-y-2">
-      <h2 className="text-lg font-medium">Photo Size</h2>
+      <h3 className="font-medium">Photo Size</h3>
 
       <PresetSelector
         items={allLayouts}
@@ -109,7 +109,7 @@ export function LayoutSelector() {
           </Label>
         </div>
 
-        <div className="text-sm font-medium">
+        <div className="text-sm">
           <p>Fits up to {maxCells} photos per page</p>
         </div>
       </div>
