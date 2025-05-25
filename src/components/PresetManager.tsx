@@ -66,6 +66,7 @@ import {
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
+import { useCollage } from "@/context/CollageContext";
 
 type PresetType = "pageSize" | "layout";
 
@@ -211,7 +212,10 @@ function SortablePresetRow({
 }
 
 export function PresetManager({ type }: PresetManagerProps) {
-  const [selectedUnit, setSelectedUnit] = useState<MeasurementUnit>("mm");
+  const {
+    collageState: { selectedUnit },
+    setUnit: setSelectedUnit,
+  } = useCollage();
   const [editDialog, setEditDialog] = useState<EditDialogState>({
     open: false,
     preset: null,

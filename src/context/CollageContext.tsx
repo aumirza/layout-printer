@@ -46,6 +46,12 @@ interface CollageContextType {
   setUnit: (unit: MeasurementUnit) => void;
   createCustomPageSize: (width: number, height: number, margin: number) => void;
   createCustomLayout: (cellWidth: number, cellHeight: number) => void;
+  // Add shared app settings
+  settings: {
+    autoSave: boolean;
+    exportQuality: string;
+  };
+  updateSettings: (key: string, value: string | boolean) => void;
 }
 
 const CollageContext = createContext<CollageContextType | undefined>(undefined);
@@ -102,6 +108,15 @@ function calculateGridDimensions(
 }
 
 export function CollageProvider({ children }: { children: ReactNode }) {
+  // Get defaults from localStorage
+  const getDefaultUnit = (): MeasurementUnit => {
+    return (localStorage.getItem("defaultUnit") as MeasurementUnit) || "mm";
+  };
+
+  const getDefaultShowCuttingMarkers = (): boolean => {
+    return localStorage.getItem("defaultShowCuttingMarkers") === "true";
+  };
+
   // Calculate initial grid dimensions
   const initialLayout = layoutPresets[0];
   const initialPageSize = pageSizes[0];
@@ -122,9 +137,26 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     rows: initialGrid.rows,
     columns: initialGrid.columns,
     spaceOptimization: "loose",
-    showCuttingMarkers: true,
+    showCuttingMarkers: getDefaultShowCuttingMarkers(),
     markerColor: "#9ca3af",
-    selectedUnit: "mm",
+    selectedUnit: getDefaultUnit(),
+  });
+
+  // App settings state
+  const [appSettings, setAppSettings] = useState({
+    autoSave: localStorage.getItem("autoSave") !== "false",
+    exportQuality: localStorage.getItem("exportQuality") || "high",
+  });
+
+  // Update settings function
+  const updateSettings = (key: string, value: string | boolean) => {
+    setAppSettings((prev) => ({ ...prev, [key]: value }));
+    localStorage.setItem(key, value.toString());
+  };
+
+  const [settings, setSettings] = useState({
+    autoSave: localStorage.getItem("autoSave") === "true",
+    exportQuality: localStorage.getItem("exportQuality") || "high",
   });
 
   const updatePageSize = (newPageSize: PageSize) => {
@@ -744,6 +776,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
         updateLayout,
         createCustomPageSize: createCustomPageSizeImpl,
         createCustomLayout: createCustomLayoutImpl,
+        settings: appSettings,
+        updateSettings,
       }}
     >
       {children}

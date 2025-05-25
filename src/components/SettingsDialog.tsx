@@ -23,6 +23,7 @@ import { MeasurementUnit } from "@/types/collage";
 import { toast } from "@/hooks/use-toast";
 import { Download, Upload, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useCollage } from "@/context/CollageContext";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -30,25 +31,31 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
+  const {
+    collageState,
+    setUnit,
+    toggleCuttingMarkers,
+    settings,
+    updateSettings,
+  } = useCollage();
+
+  // Get current values from context and localStorage
   const [defaultUnit, setDefaultUnit] = useState<MeasurementUnit>(() => {
-    return (localStorage.getItem("defaultUnit") as MeasurementUnit) || "mm";
+    return (
+      (localStorage.getItem("defaultUnit") as MeasurementUnit) ||
+      collageState.selectedUnit
+    );
   });
 
   const [showCuttingMarkers, setShowCuttingMarkers] = useState(() => {
     return localStorage.getItem("defaultShowCuttingMarkers") === "true";
   });
 
-  const [autoSave, setAutoSave] = useState(() => {
-    return localStorage.getItem("autoSave") !== "false";
-  });
-
-  const [exportQuality, setExportQuality] = useState(() => {
-    return localStorage.getItem("exportQuality") || "high";
-  });
-
   const handleDefaultUnitChange = (unit: MeasurementUnit) => {
     setDefaultUnit(unit);
     localStorage.setItem("defaultUnit", unit);
+    // Also update the current session
+    setUnit(unit);
     toast({
       title: "Default unit updated",
       description: `New projects will use ${unit} by default`,
@@ -58,6 +65,8 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
   const handleCuttingMarkersChange = (checked: boolean) => {
     setShowCuttingMarkers(checked);
     localStorage.setItem("defaultShowCuttingMarkers", checked.toString());
+    // Also update the current session
+    toggleCuttingMarkers(checked);
     toast({
       title: "Default cutting markers updated",
       description: `New projects will ${
@@ -67,8 +76,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
   };
 
   const handleAutoSaveChange = (checked: boolean) => {
-    setAutoSave(checked);
-    localStorage.setItem("autoSave", checked.toString());
+    updateSettings("autoSave", checked);
     toast({
       title: "Auto-save updated",
       description: `Auto-save is now ${checked ? "enabled" : "disabled"}`,
@@ -76,8 +84,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
   };
 
   const handleExportQualityChange = (quality: string) => {
-    setExportQuality(quality);
-    localStorage.setItem("exportQuality", quality);
+    updateSettings("exportQuality", quality);
     toast({
       title: "Export quality updated",
       description: `Default export quality set to ${quality}`,
@@ -85,11 +92,11 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
   };
 
   const exportAllSettings = () => {
-    const settings = {
+    const allSettings = {
       defaultUnit,
       showCuttingMarkers,
-      autoSave,
-      exportQuality,
+      autoSave: settings.autoSave,
+      exportQuality: settings.exportQuality,
       pagePresetSettings: localStorage.getItem("pageSizePresetSettings"),
       layoutPresetSettings: localStorage.getItem("layoutPresetSettings"),
       collagePreferences: localStorage.getItem("collagePreferences"),
@@ -97,7 +104,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
       customLayouts: localStorage.getItem("customLayouts"),
     };
 
-    const dataStr = JSON.stringify(settings, null, 2);
+    const dataStr = JSON.stringify(allSettings, null, 2);
     const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(
       dataStr
     )}`;
@@ -141,16 +148,11 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
         }
 
         if (typeof importedSettings.autoSave === "boolean") {
-          setAutoSave(importedSettings.autoSave);
-          localStorage.setItem(
-            "autoSave",
-            importedSettings.autoSave.toString()
-          );
+          updateSettings("autoSave", importedSettings.autoSave);
         }
 
         if (importedSettings.exportQuality) {
-          setExportQuality(importedSettings.exportQuality);
-          localStorage.setItem("exportQuality", importedSettings.exportQuality);
+          updateSettings("exportQuality", importedSettings.exportQuality);
         }
 
         // Import preset settings
@@ -226,8 +228,14 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
     // Reset state to defaults
     setDefaultUnit("mm");
     setShowCuttingMarkers(false);
-    setAutoSave(true);
-    setExportQuality("high");
+
+    // Reset shared settings through context
+    updateSettings("autoSave", true);
+    updateSettings("exportQuality", "high");
+
+    // Reset current session to defaults
+    setUnit("mm");
+    toggleCuttingMarkers(false);
 
     toast({
       title: "Settings reset",
@@ -303,7 +311,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
                       </p>
                     </div>
                     <Switch
-                      checked={autoSave}
+                      checked={settings.autoSave}
                       onCheckedChange={handleAutoSaveChange}
                     />
                   </div>
@@ -316,7 +324,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
                       </p>
                     </div>
                     <Select
-                      value={exportQuality}
+                      value={settings.exportQuality}
                       onValueChange={handleExportQualityChange}
                     >
                       <SelectTrigger className="w-32">

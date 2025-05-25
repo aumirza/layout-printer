@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import {
@@ -245,13 +245,48 @@ export function ExportPanel({ collageRef }: ExportPanelProps) {
     setMarkerColor,
     resetCanvas,
     clearAll,
+    settings,
   } = useCollage();
   const isEnabled = collageState.images.length > 0;
 
   const [isExporting, setIsExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("png");
   const [exportScale, setExportScale] = useState(2); // Export scale multiplier
-  const [customDpi, setCustomDpi] = useState(300); // Custom DPI value
+
+  // Initialize DPI based on export quality setting from context
+  const [customDpi, setCustomDpi] = useState(() => {
+    switch (settings.exportQuality) {
+      case "low":
+        return 150;
+      case "medium":
+        return 300;
+      case "high":
+        return 600;
+      case "ultra":
+        return 1200;
+      default:
+        return 300;
+    }
+  });
+
+  // Update DPI when export quality changes
+  useEffect(() => {
+    const newDpi = (() => {
+      switch (settings.exportQuality) {
+        case "low":
+          return 150;
+        case "medium":
+          return 300;
+        case "high":
+          return 600;
+        case "ultra":
+          return 1200;
+        default:
+          return 300;
+      }
+    })();
+    setCustomDpi(newDpi);
+  }, [settings.exportQuality]);
 
   const handleExport = async () => {
     if (!collageRef.current || !isEnabled) return;
