@@ -1,5 +1,4 @@
 import { useRef } from "react";
-import { useCollageStorage } from "@/hooks/use-collage-storage";
 import { CanvasControlsProvider } from "@/context/CanvasControlsContext";
 import { Header } from "./ui/header";
 import { CollageSidebar } from "./CollageSidebar";
@@ -8,9 +7,6 @@ import { CanvasContainer } from "./CanvasContainer";
 
 export function CollageApp() {
   const collageRef = useRef<HTMLDivElement>(null);
-
-  // Initialize storage hook (global functionality, stays here)
-  useCollageStorage();
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
