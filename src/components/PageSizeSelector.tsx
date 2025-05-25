@@ -1,37 +1,35 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { PageSize, MeasurementUnit } from "@/types/collage";
+import { MeasurementUnit, PageSize } from "@/types/collage";
 import { Button } from "@/components/ui/button";
 import { UnitConverter } from "@/lib/unit-converter";
 import { PresetSelector } from "@/components/ui/preset-selector";
-import { CustomPresetDialog } from "@/components/ui/custom-preset-dialog";
+import {
+  CustomPresetDialog,
+  PageSizeData,
+} from "@/components/ui/custom-preset-dialog";
 import { usePresetStore } from "@/stores/preset-store";
+import { useCollage } from "@/context/CollageContext";
+import { pageSizes } from "@/data/page-sizes";
 
-interface PageSizeSelectorProps {
-  pageSizes: PageSize[];
-  selectedPageSize: PageSize;
-  onSelect: (pagesize: PageSize) => void;
-  onCustomSize: (width: number, height: number, margin: number) => void;
-  selectedUnit: MeasurementUnit;
-  onUnitChange: (unit: MeasurementUnit) => void;
-}
+export function PageSizeSelector() {
+  const {
+    collageState,
+    updatePageSize,
+    createCustomPageSize: onCustomSize,
+    setUnit,
+  } = useCollage();
 
-export function PageSizeSelector({
-  selectedPageSize,
-  onSelect,
-  onCustomSize,
-  selectedUnit,
-  onUnitChange,
-}: PageSizeSelectorProps) {
+  const { pageSize: selectedPageSize, selectedUnit } = collageState;
+
   const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
-  const getAllPageSizes = usePresetStore((state) => state.getAllPageSizes);
-  const addCustomPageSize = usePresetStore((state) => state.addCustomPageSize);
-  const [allPageSizes, setAllPageSizes] = useState<PageSize[]>([]);
+  const presetStore = usePresetStore();
+  const [allPageSizes, setAllPageSizes] = useState<PageSize[]>(pageSizes);
 
   // Load all page sizes from store
   useEffect(() => {
-    setAllPageSizes(getAllPageSizes());
-  }, [getAllPageSizes]);
+    setAllPageSizes(presetStore.getAllPageSizes());
+  }, [presetStore]);
 
   // Format dimensions according to selected unit
   const formatDimension = (value: number): string => {
@@ -39,22 +37,16 @@ export function PageSizeSelector({
   };
 
   const handleUnitChange = (unit: MeasurementUnit) => {
-    onUnitChange(unit);
+    setUnit(unit);
   };
 
-  const handleCustomPresetSave = (data: {
-    width: number;
-    height: number;
-    margin: number;
-    name: string;
-    saveAsPreset: boolean;
-  }) => {
+  const handleCustomPresetSave = (data: PageSizeData) => {
     // Apply the custom size immediately
     onCustomSize(data.width, data.height, data.margin);
 
     // Save as preset if requested
     if (data.saveAsPreset) {
-      addCustomPageSize({
+      presetStore.addCustomPageSize({
         name: data.name,
         id: `custom_${Date.now()}`,
         width: data.width,
@@ -64,7 +56,7 @@ export function PageSizeSelector({
       });
 
       // Refresh the list
-      setAllPageSizes(getAllPageSizes());
+      setAllPageSizes(presetStore.getAllPageSizes());
     }
   };
 
@@ -112,25 +104,16 @@ export function PageSizeSelector({
       <PresetSelector
         items={allPageSizes}
         selected={selectedPageSize}
-        onSelect={onSelect}
+        onSelect={(preset) => updatePageSize(preset)}
         onCustomCreate={() => setIsCustomDialogOpen(true)}
-        formatItemLabel={(size) =>
-          `${size.label} (${formatDimension(size.width)}×${formatDimension(
-            size.height
+        formatItemLabel={(preset) =>
+          `${preset.label} (${formatDimension(preset.width)}×${formatDimension(
+            preset.height
           )})`
         }
-        placeholder="Select page size"
-        customCreateLabel="Create Custom Size..."
-        className="w-full"
+        placeholder="Select a page size"
+        customCreateLabel="Create Custom Size"
       />
-
-      <div className="mt-2 text-sm text-muted-foreground">
-        <p>
-          Selected size: {formatDimension(selectedPageSize.width)}×
-          {formatDimension(selectedPageSize.height)}
-        </p>
-        <p>Margin: {formatDimension(selectedPageSize.margin)}</p>
-      </div>
 
       <CustomPresetDialog
         open={isCustomDialogOpen}

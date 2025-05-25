@@ -8,12 +8,13 @@ import {
   Trash2,
   SlidersHorizontal,
 } from "lucide-react";
-import { ExportFormat, MeasurementUnit, CollageState } from "@/types/collage";
+import { ExportFormat } from "@/types/collage";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
 import { Input } from "./ui/input";
 import { UnitConverter } from "@/lib/unit-converter";
+import { useCollage } from "@/context/CollageContext";
 
 // Color conversion utility for oklch to hex
 const oklchToHex = (oklchString: string): string => {
@@ -235,27 +236,18 @@ const canvasToHighDPIBlob = (
 
 interface ExportPanelProps {
   collageRef: React.RefObject<HTMLDivElement>;
-  collageState: CollageState;
-  isEnabled: boolean;
-  onToggleCuttingMarkers: (show: boolean) => void;
-  onSetMarkerColor: (color: string) => void;
-  showCuttingMarkers: boolean;
-  onResetCanvas: () => void;
-  onClearAll: () => void;
-  selectedUnit: MeasurementUnit;
 }
 
-export function ExportPanel({
-  collageRef,
-  collageState,
-  isEnabled,
-  onToggleCuttingMarkers,
-  onSetMarkerColor,
-  showCuttingMarkers,
-  onResetCanvas,
-  onClearAll,
-  selectedUnit,
-}: ExportPanelProps) {
+export function ExportPanel({ collageRef }: ExportPanelProps) {
+  const {
+    collageState,
+    toggleCuttingMarkers,
+    setMarkerColor,
+    resetCanvas,
+    clearAll,
+  } = useCollage();
+  const isEnabled = collageState.images.length > 0;
+
   const [isExporting, setIsExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("png");
   const [exportScale, setExportScale] = useState(2); // Export scale multiplier
@@ -463,7 +455,7 @@ export function ExportPanel({
 
   // Format dimensions based on selected unit
   const formatDimension = (value: number): string => {
-    return UnitConverter.formatDimension(value, selectedUnit);
+    return UnitConverter.formatDimension(value, collageState.selectedUnit, 1);
   };
 
   return (
@@ -474,7 +466,7 @@ export function ExportPanel({
         <div className="grid grid-cols-2 gap-2">
           <Button
             variant="outline"
-            onClick={onResetCanvas}
+            onClick={resetCanvas}
             className="flex items-center justify-center gap-2"
           >
             <RefreshCw className="h-4 w-4" />
@@ -483,7 +475,7 @@ export function ExportPanel({
 
           <Button
             variant="outline"
-            onClick={onClearAll}
+            onClick={clearAll}
             className="flex items-center justify-center gap-2"
           >
             <Trash2 className="h-4 w-4" />
@@ -533,12 +525,12 @@ export function ExportPanel({
         <div className="flex items-center justify-between">
           <span className="text-sm">Cutting Markers</span>
           <Switch
-            checked={showCuttingMarkers}
-            onCheckedChange={onToggleCuttingMarkers}
+            checked={collageState.showCuttingMarkers}
+            onCheckedChange={toggleCuttingMarkers}
           />
         </div>
 
-        {showCuttingMarkers && (
+        {collageState.showCuttingMarkers && (
           <div className="pl-4 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">
@@ -548,7 +540,7 @@ export function ExportPanel({
                 <input
                   type="color"
                   value={collageState.markerColor}
-                  onChange={(e) => onSetMarkerColor(e.target.value)}
+                  onChange={(e) => setMarkerColor(e.target.value)}
                   className="w-8 h-6 border border-border rounded cursor-pointer"
                   title="Choose marker color"
                 />
@@ -577,7 +569,7 @@ export function ExportPanel({
                       : "border-border"
                   }`}
                   style={{ backgroundColor: color }}
-                  onClick={() => onSetMarkerColor(color)}
+                  onClick={() => setMarkerColor(color)}
                   title={`Set marker color to ${color}`}
                 />
               ))}

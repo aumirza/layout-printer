@@ -4,8 +4,6 @@ import { LayoutSelector } from "./LayoutSelector";
 import { ImageUploader } from "./ImageUploader";
 import { ExportPanel } from "./ExportPanel";
 import { useCollage } from "@/context/CollageContext";
-import { pageSizes } from "@/data/page-sizes";
-import { layoutPresets } from "@/data/layout-presets";
 import {
   Accordion,
   AccordionContent,
@@ -18,27 +16,6 @@ interface CollageSidebarProps {
 }
 
 export function CollageSidebar({ collageRef }: CollageSidebarProps) {
-  const {
-    collageState,
-    updatePageSize,
-    updateLayout,
-    handleImagesAdded,
-    removeImage,
-    updateImageCount,
-    updateImageSettings,
-    rearrangeCollage,
-    distributeEqually,
-    setSpaceOptimization,
-    toggleCuttingMarkers,
-    setMarkerColor,
-    resetCanvas,
-    clearAll,
-    setUnit,
-    createCustomPageSize,
-    createCustomLayout,
-  } = useCollage();
-
-  const maxCells = collageState.rows * collageState.columns;
   return (
     <div className="w-full lg:w-1/4 p-4 overflow-y-auto border-r">
       <div className="space-y-6 pb-6">
@@ -48,14 +25,7 @@ export function CollageSidebar({ collageRef }: CollageSidebarProps) {
               Page Size
             </AccordionTrigger>
             <AccordionContent>
-              <PageSizeSelector
-                pageSizes={pageSizes}
-                selectedPageSize={collageState.pageSize}
-                onSelect={updatePageSize}
-                onCustomSize={createCustomPageSize}
-                selectedUnit={collageState.selectedUnit}
-                onUnitChange={setUnit}
-              />
+              <PageSizeSelector />
             </AccordionContent>
           </AccordionItem>
 
@@ -64,16 +34,7 @@ export function CollageSidebar({ collageRef }: CollageSidebarProps) {
               Photo Size
             </AccordionTrigger>
             <AccordionContent>
-              <LayoutSelector
-                layouts={layoutPresets}
-                selectedLayout={collageState.layout}
-                onSelect={updateLayout}
-                onCustomLayout={createCustomLayout}
-                selectedUnit={collageState.selectedUnit}
-                spaceOptimization={collageState.spaceOptimization}
-                onSpaceOptimizationChange={setSpaceOptimization}
-                cellCount={maxCells}
-              />
+              <LayoutSelector />
             </AccordionContent>
           </AccordionItem>
 
@@ -82,16 +43,7 @@ export function CollageSidebar({ collageRef }: CollageSidebarProps) {
               Photos
             </AccordionTrigger>
             <AccordionContent>
-              <ImageUploader
-                onImagesAdded={handleImagesAdded}
-                images={collageState.images}
-                onImageRemove={removeImage}
-                onUpdateImage={updateImageSettings}
-                onUpdateCount={updateImageCount}
-                onRearrange={rearrangeCollage}
-                onDistributeEqually={distributeEqually}
-                maxCells={maxCells}
-              />
+              <ImageUploader />
             </AccordionContent>
           </AccordionItem>
 
@@ -100,17 +52,7 @@ export function CollageSidebar({ collageRef }: CollageSidebarProps) {
               Options & Export
             </AccordionTrigger>
             <AccordionContent>
-              <ExportPanel
-                collageRef={collageRef}
-                collageState={collageState}
-                isEnabled={collageState.images.length > 0}
-                onToggleCuttingMarkers={toggleCuttingMarkers}
-                onSetMarkerColor={setMarkerColor}
-                showCuttingMarkers={collageState.showCuttingMarkers}
-                onResetCanvas={resetCanvas}
-                onClearAll={clearAll}
-                selectedUnit={collageState.selectedUnit}
-              />
+              <ExportPanel collageRef={collageRef} />
             </AccordionContent>
           </AccordionItem>
         </Accordion>

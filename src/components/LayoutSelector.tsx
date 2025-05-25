@@ -1,74 +1,66 @@
-import { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
-import {
-  LayoutPreset,
-  MeasurementUnit,
-  SpaceOptimization,
-} from "@/types/collage";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useMemo } from "react";
+import { LayoutPreset } from "@/types/collage";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { UnitConverter } from "@/lib/unit-converter";
 import { PresetSelector } from "@/components/ui/preset-selector";
-import { CustomPresetDialog } from "@/components/ui/custom-preset-dialog";
+import {
+  CustomPresetDialog,
+  LayoutData,
+} from "@/components/ui/custom-preset-dialog";
 import { usePresetStore } from "@/stores/preset-store";
+import { useCollage } from "@/context/CollageContext";
+import { layoutPresets } from "@/data/layout-presets";
 
-interface LayoutSelectorProps {
-  layouts: LayoutPreset[];
-  selectedLayout: LayoutPreset;
-  onSelect: (layout: LayoutPreset) => void;
-  onCustomLayout: (cellWidth: number, cellHeight: number) => void;
-  selectedUnit: MeasurementUnit;
-  spaceOptimization: SpaceOptimization;
-  onSpaceOptimizationChange: (value: SpaceOptimization) => void;
-  cellCount: number;
-}
+export function LayoutSelector() {
+  const {
+    collageState,
+    updateLayout,
+    createCustomLayout,
+    setSpaceOptimization,
+  } = useCollage();
 
-export function LayoutSelector({
-  layouts,
-  selectedLayout,
-  onSelect,
-  onCustomLayout,
-  selectedUnit,
-  spaceOptimization,
-  onSpaceOptimizationChange,
-  cellCount,
-}: LayoutSelectorProps) {
+  const {
+    layout: selectedLayout,
+    selectedUnit,
+    spaceOptimization,
+  } = collageState;
+
+  const maxCells = useMemo(
+    () => collageState.rows * collageState.columns,
+    [collageState.rows, collageState.columns]
+  );
+
   const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
-  const getAllLayouts = usePresetStore((state) => state.getAllLayouts);
-  const addCustomLayout = usePresetStore((state) => state.addCustomLayout);
-  const [allLayouts, setAllLayouts] = useState<LayoutPreset[]>([]);
+  const presetStore = usePresetStore();
+  const [allLayouts, setAllLayouts] = useState<LayoutPreset[]>(layoutPresets);
 
   // Load all layouts from store
   useEffect(() => {
-    setAllLayouts(getAllLayouts());
-  }, [getAllLayouts]);
+    setAllLayouts(presetStore.getAllLayouts());
+  }, [presetStore]);
 
   // Format dimensions according to selected unit
   const formatDimension = (value: number): string => {
     return UnitConverter.formatDimension(value, selectedUnit, 1);
   };
 
-  const handleCustomPresetSave = (data: {
-    cellWidth: number;
-    cellHeight: number;
-    name: string;
-    saveAsPreset: boolean;
-  }) => {
+  const handleCustomPresetSave = (data: LayoutData) => {
     // Apply the custom layout immediately
-    onCustomLayout(data.cellWidth, data.cellHeight);
+    createCustomLayout(data.cellWidth, data.cellHeight);
 
     // Save as preset if requested
     if (data.saveAsPreset) {
-      addCustomLayout({
+      presetStore.addCustomLayout({
         name: data.name,
+        id: `custom_${Date.now()}`,
         cellWidth: data.cellWidth,
         cellHeight: data.cellHeight,
         label: data.name,
       });
 
       // Refresh the list
-      setAllLayouts(getAllLayouts());
+      setAllLayouts(presetStore.getAllLayouts());
     }
   };
 
@@ -79,7 +71,7 @@ export function LayoutSelector({
       <PresetSelector
         items={allLayouts}
         selected={selectedLayout}
-        onSelect={onSelect}
+        onSelect={updateLayout}
         onCustomCreate={() => setIsCustomDialogOpen(true)}
         formatItemLabel={(layout) =>
           `${layout.label} (${formatDimension(
@@ -99,38 +91,26 @@ export function LayoutSelector({
           </p>
         </div>
 
-        <div className="flex justify-between items-center">
-          <div>
-            <Label htmlFor="fitType" className="text-sm">
-              Photo Arrangement
-            </Label>
-            <p className="text-xs text-muted-foreground mt-1">
-              {spaceOptimization === "loose"
-                ? "Loose Fit: Consistent orientation"
-                : "Tight Fit: Mixed orientations"}
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="space-optimization"
+            checked={spaceOptimization === "tight"}
+            onCheckedChange={(checked) =>
+              setSpaceOptimization(checked ? "tight" : "loose")
+            }
+          />
+          <Label htmlFor="space-optimization">
+            <span className="ml-2">Space optimization</span>
+            <p className="text-xs text-muted-foreground">
+              {spaceOptimization === "tight"
+                ? "Tight fit (more photos)"
+                : "Loose fit (consistent orientation)"}
             </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Label htmlFor="fit-toggle" className="text-xs">
-              Loose
-            </Label>
-            <Switch
-              id="fit-toggle"
-              checked={spaceOptimization === "tight"}
-              onCheckedChange={(checked) =>
-                onSpaceOptimizationChange(checked ? "tight" : "loose")
-              }
-            />
-            <Label htmlFor="fit-toggle" className="text-xs">
-              Tight
-            </Label>
-          </div>
+          </Label>
         </div>
 
-        <div className="bg-muted/30 rounded-md p-2 text-sm">
-          <p>
-            Estimated layout: <strong>{cellCount}</strong> photo cells
-          </p>
+        <div className="text-sm font-medium">
+          <p>Fits up to {maxCells} photos per page</p>
         </div>
       </div>
 
