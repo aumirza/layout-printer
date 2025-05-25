@@ -7,7 +7,6 @@ import {
 } from "react";
 import { pageSizes, createCustomPageSize } from "@/data/page-sizes";
 import { layoutPresets, createCustomLayout } from "@/data/layout-presets";
-import { CustomPresetStorage } from "@/lib/custom-preset-storage";
 import {
   CollageState,
   CollageImage,
@@ -16,15 +15,15 @@ import {
   SpaceOptimization,
   MeasurementUnit,
   LayoutCalculation,
-  PageSize,
   LayoutPreset,
+  PageSize,
 } from "@/types/collage";
 import { toast } from "@/hooks/use-toast";
 
 interface CollageContextType {
   collageState: CollageState;
-  updatePageSize: (pageSizeIndex: number) => void;
-  updateLayout: (layoutIndex: number) => void;
+  updatePageSize: (pageSize: PageSize) => void;
+  updateLayout: (layout: LayoutPreset) => void;
   handleImagesAdded: (newImages: CollageImage[]) => void;
   assignImageToCell: (
     rowIndex: number,
@@ -128,9 +127,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     selectedUnit: "mm",
   });
 
-  const updatePageSize = (pageSizeIndex: number) => {
-    const newPageSize = pageSizes[pageSizeIndex];
-
+  const updatePageSize = (newPageSize: PageSize) => {
     setCollageState((prev) => {
       // Recalculate grid dimensions based on new page size
       const layout = calculateGridDimensions(
@@ -194,13 +191,8 @@ export function CollageProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const updateLayout = (layoutIndex: number) => {
+  const updateLayout = (newLayout: LayoutPreset) => {
     // Get all layouts (built-in + custom)
-    const allLayouts = [
-      ...layoutPresets,
-      ...CustomPresetStorage.getCustomLayouts(),
-    ];
-    const newLayout = allLayouts[layoutIndex];
 
     if (!newLayout) {
       toast({
@@ -736,7 +728,6 @@ export function CollageProvider({ children }: { children: ReactNode }) {
       value={{
         collageState,
         updatePageSize,
-        updateLayout,
         handleImagesAdded,
         assignImageToCell,
         removeImage,
@@ -750,6 +741,7 @@ export function CollageProvider({ children }: { children: ReactNode }) {
         resetCanvas,
         clearAll,
         setUnit,
+        updateLayout,
         createCustomPageSize: createCustomPageSizeImpl,
         createCustomLayout: createCustomLayoutImpl,
       }}

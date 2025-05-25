@@ -17,8 +17,8 @@ const Editor = () => {
   }, []);
 
   const handleInitialSetup = (settings: Settings) => {
-    updatePageSize(settings.pageSizeIndex);
-    updateLayout(settings.layoutIndex);
+    updatePageSize(settings.pageSize);
+    updateLayout(settings.layout);
     setSpaceOptimization(settings.spaceOptimization);
     setUnit(settings.selectedUnit);
 

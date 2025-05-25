@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,15 +46,8 @@ import {
   Eye,
   Copy,
 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-import {
-  CustomPresetStorage,
-  CustomPageSize,
-  CustomLayoutPreset,
-} from "@/lib/custom-preset-storage";
 import { PageSize, LayoutPreset, MeasurementUnit } from "@/types/collage";
-import { pageSizes } from "@/data/page-sizes";
-import { layoutPresets } from "@/data/layout-presets";
+import { usePresetStore, EditablePreset } from "@/stores/preset-store";
 import {
   DndContext,
   closestCenter,
@@ -76,29 +69,20 @@ import { cn } from "@/lib/utils";
 
 type PresetType = "pageSize" | "layout";
 
-interface PresetManagerProps {
-  type: PresetType;
-}
-
-interface EditablePreset {
-  id: string;
-  name: string;
-  label: string;
-  isBuiltIn: boolean;
-  isVisible: boolean;
-  order: number;
-  data: PageSize | LayoutPreset;
-}
-
 interface EditDialogState {
   open: boolean;
   preset: EditablePreset | null;
   isNew: boolean;
 }
 
+interface PresetManagerProps {
+  type: PresetType;
+}
+
 interface SortablePresetRowProps {
   preset: EditablePreset;
   unit: MeasurementUnit;
+  type: PresetType;
   onEdit: (preset: EditablePreset) => void;
   onDelete: (preset: EditablePreset) => void;
   onDuplicate: (preset: EditablePreset) => void;
@@ -108,6 +92,7 @@ interface SortablePresetRowProps {
 function SortablePresetRow({
   preset,
   unit,
+  type,
   onEdit,
   onDelete,
   onDuplicate,
@@ -226,7 +211,6 @@ function SortablePresetRow({
 }
 
 export function PresetManager({ type }: PresetManagerProps) {
-  const [presets, setPresets] = useState<EditablePreset[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<MeasurementUnit>("mm");
   const [editDialog, setEditDialog] = useState<EditDialogState>({
     open: false,
@@ -255,154 +239,70 @@ export function PresetManager({ type }: PresetManagerProps) {
     })
   );
 
-  // Load presets
-  useEffect(() => {
-    loadPresets();
-  }, [type]); // eslint-disable-line react-hooks/exhaustive-deps
+  const presets = usePresetStore((state) => state.getPresets(type));
+  const savePresetSettings = usePresetStore(
+    (state) => state.savePresetSettings
+  );
 
-  const loadPresets = () => {
-    const builtInPresets = type === "pageSize" ? pageSizes : layoutPresets;
-    const customPresets =
-      type === "pageSize"
-        ? CustomPresetStorage.getCustomPageSizes()
-        : CustomPresetStorage.getCustomLayouts();
+  // Get store actions and wrap with correct type parameter
+  const toggleVisibility = usePresetStore(
+    (state) => state.handleToggleVisibility
+  );
+  const editPreset = usePresetStore((state) => state.handleEdit);
+  const duplicatePreset = usePresetStore((state) => state.handleDuplicate);
+  const createNewPreset = usePresetStore((state) => state.handleNewPreset);
+  const saveEditPreset = usePresetStore((state) => state.handleSaveEdit);
+  const deletePreset = usePresetStore((state) => state.handleDelete);
+  const exportPresetsFromStore = usePresetStore((state) => state.exportPresets);
+  const importPresetsToStore = usePresetStore((state) => state.importPresets);
 
-    // Get visibility and order settings from localStorage
-    const settingsKey = `${type}PresetSettings`;
-    const savedSettings = JSON.parse(localStorage.getItem(settingsKey) || "{}");
-
-    const allPresets: EditablePreset[] = [
-      ...builtInPresets.map((preset, index) => ({
-        id: preset.id || `builtin-${type}-${index}`,
-        name: preset.name || preset.label,
-        label: preset.label,
-        isBuiltIn: true,
-        isVisible:
-          savedSettings[preset.id || `builtin-${type}-${index}`]?.isVisible ??
-          true,
-        order:
-          savedSettings[preset.id || `builtin-${type}-${index}`]?.order ??
-          index,
-        data: preset,
-      })),
-      ...customPresets.map((preset, index) => ({
-        id: preset.id,
-        name: preset.name,
-        label: preset.label,
-        isBuiltIn: false,
-        isVisible: savedSettings[preset.id]?.isVisible ?? true,
-        order: savedSettings[preset.id]?.order ?? builtInPresets.length + index,
-        data: preset,
-      })),
-    ];
-
-    // Sort by order
-    allPresets.sort((a, b) => a.order - b.order);
-    setPresets(allPresets);
-  };
-
-  const savePresetSettings = (updatedPresets: EditablePreset[]) => {
-    const settingsKey = `${type}PresetSettings`;
-    const settings: Record<string, { isVisible: boolean; order: number }> = {};
-
-    updatedPresets.forEach((preset, index) => {
-      settings[preset.id] = {
-        isVisible: preset.isVisible,
-        order: index,
-      };
-    });
-
-    localStorage.setItem(settingsKey, JSON.stringify(settings));
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      setPresets((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-
-        const newItems = arrayMove(items, oldIndex, newIndex);
-        savePresetSettings(newItems);
-        return newItems;
-      });
-    }
-  };
-
+  // Wrap the handlers to include the type parameter
   const handleToggleVisibility = (preset: EditablePreset) => {
-    const updatedPresets = presets.map((p) =>
-      p.id === preset.id ? { ...p, isVisible: !p.isVisible } : p
-    );
-    setPresets(updatedPresets);
-    savePresetSettings(updatedPresets);
+    toggleVisibility(type, preset);
   };
 
   const handleEdit = (preset: EditablePreset) => {
-    if (type === "pageSize") {
-      const pageData = preset.data as PageSize;
+    editPreset(preset);
+    // Populate the edit form
+    if ("width" in preset.data) {
+      const pageSize = preset.data as PageSize;
       setEditForm({
         name: preset.name,
         label: preset.label,
-        width: pageData.width.toString(),
-        height: pageData.height.toString(),
-        margin: pageData.margin.toString(),
+        width: pageSize.width.toString(),
+        height: pageSize.height.toString(),
+        margin: pageSize.margin.toString(),
         cellWidth: "",
         cellHeight: "",
       });
-    } else {
-      const layoutData = preset.data as LayoutPreset;
+    } else if ("cellWidth" in preset.data) {
+      const layout = preset.data as LayoutPreset;
       setEditForm({
         name: preset.name,
         label: preset.label,
         width: "",
         height: "",
         margin: "",
-        cellWidth: layoutData.cellWidth.toString(),
-        cellHeight: layoutData.cellHeight.toString(),
+        cellWidth: layout.cellWidth.toString(),
+        cellHeight: layout.cellHeight.toString(),
       });
     }
-
     setEditDialog({ open: true, preset, isNew: false });
   };
 
   const handleDuplicate = (preset: EditablePreset) => {
-    const newName = `${preset.name} Copy`;
-
-    if (type === "pageSize") {
-      const pageData = preset.data as PageSize;
-      setEditForm({
-        name: newName,
-        label: newName,
-        width: pageData.width.toString(),
-        height: pageData.height.toString(),
-        margin: pageData.margin.toString(),
-        cellWidth: "",
-        cellHeight: "",
-      });
-    } else {
-      const layoutData = preset.data as LayoutPreset;
-      setEditForm({
-        name: newName,
-        label: newName,
-        width: "",
-        height: "",
-        margin: "",
-        cellWidth: layoutData.cellWidth.toString(),
-        cellHeight: layoutData.cellHeight.toString(),
-      });
-    }
-
-    setEditDialog({ open: true, preset: null, isNew: true });
+    duplicatePreset(type, preset);
   };
 
   const handleNewPreset = () => {
+    createNewPreset(type);
+    // Clear the form
     setEditForm({
       name: "",
       label: "",
       width: "",
       height: "",
-      margin: "5",
+      margin: "",
       cellWidth: "",
       cellHeight: "",
     });
@@ -410,71 +310,59 @@ export function PresetManager({ type }: PresetManagerProps) {
   };
 
   const handleSaveEdit = () => {
-    try {
-      if (type === "pageSize") {
-        const width = parseFloat(editForm.width);
-        const height = parseFloat(editForm.height);
-        const margin = parseFloat(editForm.margin || "0");
+    if (!editDialog.preset && !editDialog.isNew) return;
 
-        if (width <= 0 || height <= 0 || margin < 0) {
-          toast({
-            title: "Invalid dimensions",
-            description:
-              "Width and height must be greater than 0, margin must be 0 or greater",
-            variant: "destructive",
-          });
-          return;
+    const editedPreset: EditablePreset = editDialog.isNew
+      ? {
+          id: `new_${Date.now()}`,
+          name: editForm.name,
+          label: editForm.label,
+          isBuiltIn: false,
+          isVisible: true,
+          order: 999,
+          data:
+            type === "pageSize"
+              ? {
+                  name: editForm.name,
+                  label: editForm.label,
+                  width: parseFloat(editForm.width),
+                  height: parseFloat(editForm.height),
+                  margin: parseFloat(editForm.margin || "0"),
+                }
+              : {
+                  id: editForm.name,
+                  name: editForm.name,
+                  label: editForm.label,
+                  cellWidth: parseFloat(editForm.cellWidth),
+                  cellHeight: parseFloat(editForm.cellHeight),
+                },
         }
+      : {
+          ...editDialog.preset!,
+          name: editForm.name,
+          label: editForm.label,
+          data:
+            type === "pageSize"
+              ? {
+                  ...(editDialog.preset!.data as PageSize),
+                  name: editForm.name,
+                  label: editForm.label,
+                  width: parseFloat(editForm.width),
+                  height: parseFloat(editForm.height),
+                  margin: parseFloat(editForm.margin || "0"),
+                }
+              : {
+                  ...(editDialog.preset!.data as LayoutPreset),
+                  id: editForm.name,
+                  name: editForm.name,
+                  label: editForm.label,
+                  cellWidth: parseFloat(editForm.cellWidth),
+                  cellHeight: parseFloat(editForm.cellHeight),
+                },
+        };
 
-        if (editDialog.isNew || !editDialog.preset?.isBuiltIn) {
-          CustomPresetStorage.saveCustomPageSize({
-            id: editDialog.preset?.id,
-            name: editForm.name,
-            label: editForm.label,
-            width,
-            height,
-            margin,
-          });
-        }
-      } else {
-        const cellWidth = parseFloat(editForm.cellWidth);
-        const cellHeight = parseFloat(editForm.cellHeight);
-
-        if (cellWidth <= 0 || cellHeight <= 0) {
-          toast({
-            title: "Invalid dimensions",
-            description: "Width and height must be greater than 0",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (editDialog.isNew || !editDialog.preset?.isBuiltIn) {
-          CustomPresetStorage.saveCustomLayout({
-            name: editForm.name,
-            label: editForm.label,
-            cellWidth,
-            cellHeight,
-          });
-        }
-      }
-
-      loadPresets();
-      setEditDialog({ open: false, preset: null, isNew: false });
-
-      toast({
-        title: editDialog.isNew ? "Preset created" : "Preset updated",
-        description: `${editForm.label} has been ${
-          editDialog.isNew ? "created" : "updated"
-        }`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error saving preset",
-        description: "Please check your input values",
-        variant: "destructive",
-      });
-    }
+    saveEditPreset(type, editedPreset);
+    setEditDialog({ open: false, preset: null, isNew: false });
   };
 
   const handleDelete = (preset: EditablePreset) => {
@@ -482,113 +370,42 @@ export function PresetManager({ type }: PresetManagerProps) {
   };
 
   const confirmDelete = () => {
-    if (deleteDialog.preset && !deleteDialog.preset.isBuiltIn) {
-      if (type === "pageSize") {
-        CustomPresetStorage.deleteCustomPageSize(deleteDialog.preset.id);
-      } else {
-        CustomPresetStorage.deleteCustomLayout(deleteDialog.preset.id);
-      }
-
-      loadPresets();
+    if (deleteDialog.preset) {
+      deletePreset(type, deleteDialog.preset.id);
       setDeleteDialog({ open: false, preset: null });
-
-      toast({
-        title: "Preset deleted",
-        description: `${deleteDialog.preset.label} has been removed`,
-      });
     }
   };
 
   const exportPresets = () => {
-    const customPresetsOnly = presets.filter((p) => !p.isBuiltIn);
-    const dataStr = JSON.stringify(customPresetsOnly.map((p) => p.data));
-    const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(
-      dataStr
-    )}`;
-
-    const exportName = `collage-${type}-presets-${new Date()
-      .toISOString()
-      .slice(0, 10)}.json`;
-
-    const linkElement = document.createElement("a");
-    linkElement.setAttribute("href", dataUri);
-    linkElement.setAttribute("download", exportName);
-    linkElement.click();
-
-    toast({
-      title: "Presets exported",
-      description: `${customPresetsOnly.length} custom presets exported`,
-    });
+    exportPresetsFromStore(type);
   };
 
   const importPresets = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        importPresetsToStore(type, content);
+      };
+      reader.readAsText(file);
+    }
+  };
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const importedData = JSON.parse(e.target?.result as string);
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
 
-        if (Array.isArray(importedData)) {
-          importedData.forEach((presetData: Record<string, unknown>) => {
-            if (
-              type === "pageSize" &&
-              typeof presetData.width === "number" &&
-              typeof presetData.height === "number"
-            ) {
-              CustomPresetStorage.saveCustomPageSize({
-                name: String(
-                  presetData.name || presetData.label || "Imported Page Size"
-                ),
-                label: String(
-                  presetData.label || presetData.name || "Imported Page Size"
-                ),
-                width: presetData.width,
-                height: presetData.height,
-                margin:
-                  typeof presetData.margin === "number" ? presetData.margin : 5,
-                id: String(
-                  presetData.id ||
-                    `imported_page_${Date.now()}_${Math.random()}`
-                ),
-              });
-            } else if (
-              type === "layout" &&
-              typeof presetData.cellWidth === "number" &&
-              typeof presetData.cellHeight === "number"
-            ) {
-              CustomPresetStorage.saveCustomLayout({
-                name: String(
-                  presetData.name || presetData.label || "Imported Layout"
-                ),
-                label: String(
-                  presetData.label || presetData.name || "Imported Layout"
-                ),
-                cellWidth: presetData.cellWidth,
-                cellHeight: presetData.cellHeight,
-              });
-            }
-          });
+    if (over && active.id !== over.id) {
+      const oldIndex = presets.findIndex((item) => item.id === active.id);
+      const newIndex = presets.findIndex((item) => item.id === over.id);
 
-          loadPresets();
-          toast({
-            title: "Presets imported",
-            description: `${importedData.length} presets imported successfully`,
-          });
-        }
-      } catch (error) {
-        toast({
-          title: "Import failed",
-          description: "Invalid file format",
-          variant: "destructive",
-        });
-      }
-    };
-    reader.readAsText(file);
-
-    // Reset input
-    event.target.value = "";
+      const newItems = arrayMove(presets, oldIndex, newIndex);
+      const newSettings = {
+        visibleIds: newItems.filter((p) => p.isVisible).map((p) => p.id),
+        order: newItems.map((p) => p.id),
+      };
+      savePresetSettings(type, newSettings);
+    }
   };
 
   return (
@@ -670,6 +487,7 @@ export function PresetManager({ type }: PresetManagerProps) {
                         key={preset.id}
                         preset={preset}
                         unit={selectedUnit}
+                        type={type}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         onDuplicate={handleDuplicate}
@@ -687,9 +505,9 @@ export function PresetManager({ type }: PresetManagerProps) {
       {/* Edit Dialog */}
       <Dialog
         open={editDialog.open}
-        onOpenChange={(open) =>
-          !open && setEditDialog({ open: false, preset: null, isNew: false })
-        }
+        onOpenChange={(open) => {
+          if (!open) setEditDialog({ open: false, preset: null, isNew: false });
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -823,9 +641,9 @@ export function PresetManager({ type }: PresetManagerProps) {
       {/* Delete Confirmation Dialog */}
       <AlertDialog
         open={deleteDialog.open}
-        onOpenChange={(open) =>
-          !open && setDeleteDialog({ open: false, preset: null })
-        }
+        onOpenChange={(open) => {
+          if (!open) setDeleteDialog({ open: false, preset: null });
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>

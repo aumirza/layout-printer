@@ -5,22 +5,18 @@ import { Button } from "@/components/ui/button";
 import { UnitConverter } from "@/lib/unit-converter";
 import { PresetSelector } from "@/components/ui/preset-selector";
 import { CustomPresetDialog } from "@/components/ui/custom-preset-dialog";
-import {
-  CustomPresetStorage,
-  CustomPageSize,
-} from "@/lib/custom-preset-storage";
+import { usePresetStore } from "@/stores/preset-store";
 
 interface PageSizeSelectorProps {
   pageSizes: PageSize[];
   selectedPageSize: PageSize;
-  onSelect: (index: number) => void;
+  onSelect: (pagesize: PageSize) => void;
   onCustomSize: (width: number, height: number, margin: number) => void;
   selectedUnit: MeasurementUnit;
   onUnitChange: (unit: MeasurementUnit) => void;
 }
 
 export function PageSizeSelector({
-  pageSizes,
   selectedPageSize,
   onSelect,
   onCustomSize,
@@ -28,25 +24,14 @@ export function PageSizeSelector({
   onUnitChange,
 }: PageSizeSelectorProps) {
   const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
-  const [allPageSizes, setAllPageSizes] = useState<
-    (PageSize | CustomPageSize)[]
-  >([]);
+  const getAllPageSizes = usePresetStore((state) => state.getAllPageSizes);
+  const addCustomPageSize = usePresetStore((state) => state.addCustomPageSize);
+  const [allPageSizes, setAllPageSizes] = useState<PageSize[]>([]);
 
-  // Load all page sizes (default + custom) on component mount
+  // Load all page sizes from store
   useEffect(() => {
-    const loadAllPageSizes = () => {
-      const customSizes = CustomPresetStorage.getCustomPageSizes();
-      setAllPageSizes([...pageSizes, ...customSizes]);
-    };
-
-    loadAllPageSizes();
-
-    // Listen for storage changes to update custom presets
-    const handleStorageChange = () => loadAllPageSizes();
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, [pageSizes]);
+    setAllPageSizes(getAllPageSizes());
+  }, [getAllPageSizes]);
 
   // Format dimensions according to selected unit
   const formatDimension = (value: number): string => {
@@ -69,8 +54,9 @@ export function PageSizeSelector({
 
     // Save as preset if requested
     if (data.saveAsPreset) {
-      const customPageSize = CustomPresetStorage.saveCustomPageSize({
+      addCustomPageSize({
         name: data.name,
+        id: `custom_${Date.now()}`,
         width: data.width,
         height: data.height,
         margin: data.margin,
@@ -78,8 +64,7 @@ export function PageSizeSelector({
       });
 
       // Refresh the list
-      const customSizes = CustomPresetStorage.getCustomPageSizes();
-      setAllPageSizes([...pageSizes, ...customSizes]);
+      setAllPageSizes(getAllPageSizes());
     }
   };
 
@@ -126,9 +111,7 @@ export function PageSizeSelector({
 
       <PresetSelector
         items={allPageSizes}
-        selectedIndex={allPageSizes.findIndex(
-          (p) => p.name === selectedPageSize.name
-        )}
+        selected={selectedPageSize}
         onSelect={onSelect}
         onCustomCreate={() => setIsCustomDialogOpen(true)}
         formatItemLabel={(size) =>

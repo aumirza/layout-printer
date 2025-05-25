@@ -1,10 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import {
-  MeasurementUnit,
-  PageSize,
-  LayoutPreset,
-  SpaceOptimization,
-} from "@/types/collage";
+import { useState, useEffect } from "react";
+import { MeasurementUnit, SpaceOptimization } from "@/types/collage";
 import {
   Dialog,
   DialogContent,
@@ -23,8 +18,6 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { PresetSelector } from "@/components/ui/preset-selector";
-import { pageSizes } from "@/data/page-sizes";
-import { layoutPresets } from "@/data/layout-presets";
 import { UnitConverter } from "@/lib/unit-converter";
 import { Settings } from "@/types/settings";
 import {
@@ -32,11 +25,10 @@ import {
   type PageSizeData,
   type LayoutData,
 } from "@/components/ui/custom-preset-dialog";
-import {
-  CustomPresetStorage,
-  CustomPageSize,
-  CustomLayoutPreset,
-} from "@/lib/custom-preset-storage";
+import { usePresetStore } from "@/stores/preset-store";
+import { layoutPresets } from "@/data/layout-presets";
+import { pageSizes } from "@/data/page-sizes";
+import { useCollage } from "@/context/CollageContext";
 
 interface InitialSetupModalProps {
   open: boolean;
@@ -49,78 +41,48 @@ export function InitialSetupModal({
   onClose,
   onApplySettings,
 }: InitialSetupModalProps) {
-  const [pageSizeIndex, setPageSizeIndex] = useState(0);
-  const [layoutIndex, setLayoutIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(pageSizes[0]); // Default to first page size
+  const [layout, setLayout] = useState(layoutPresets[0]); // Default to first layout
+
   const [spaceOptimization, setSpaceOptimization] =
     useState<SpaceOptimization>("loose");
   const [selectedUnit, setSelectedUnit] = useState<MeasurementUnit>("mm");
   const [calculatedCells, setCalculatedCells] = useState<number>(0);
 
-  // Custom preset states
-  const [customPageSizes, setCustomPageSizes] = useState<CustomPageSize[]>([]);
-  const [customLayouts, setCustomLayouts] = useState<CustomLayoutPreset[]>([]);
   const [customDialogOpen, setCustomDialogOpen] = useState(false);
   const [customDialogType, setCustomDialogType] = useState<
     "pageSize" | "layout"
   >("pageSize");
 
-  // Load custom presets
-  useEffect(() => {
-    setCustomPageSizes(CustomPresetStorage.getCustomPageSizes());
-    setCustomLayouts(CustomPresetStorage.getCustomLayouts());
-  }, []);
+  const { updateLayout, updatePageSize } = useCollage();
 
-  // Get all page sizes (built-in + custom)
-  const allPageSizes = useMemo(
-    () => [...pageSizes, ...customPageSizes],
-    [customPageSizes]
-  );
-
-  // Get all layouts (built-in + custom)
-  const allLayouts = useMemo(
-    () => [...layoutPresets, ...customLayouts],
-    [customLayouts]
-  );
+  // Get presets and actions from the store
+  const allPageSizes = usePresetStore((state) => state.getAllPageSizes)();
+  const allLayouts = usePresetStore((state) => state.getAllLayouts)();
+  const addCustomPageSize = usePresetStore((state) => state.addCustomPageSize);
+  const addCustomLayout = usePresetStore((state) => state.addCustomLayout);
 
   // Calculate the estimated number of cells
   useEffect(() => {
-    if (pageSizeIndex >= 0 && layoutIndex >= 0) {
-      const pageSize = allPageSizes[pageSizeIndex];
-      const layout = allLayouts[layoutIndex];
-
-      if (pageSize && layout) {
-        // Calculate usable area by removing margins
-        const usableWidth = pageSize.width - pageSize.margin * 2;
-        const usableHeight = pageSize.height - pageSize.margin * 2;
-
-        // Calculate cells based on layout dimensions
-        const columns = Math.floor(usableWidth / layout.cellWidth);
-        const rows = Math.floor(usableHeight / layout.cellHeight);
-
-        setCalculatedCells(rows * columns);
-      }
+    if (pageSize && layout) {
+      // Calculate usable area by removing margins
+      const usableWidth = pageSize.width - pageSize.margin * 2;
+      const usableHeight = pageSize.height - pageSize.margin * 2;
+      // Calculate cells based on layout dimensions
+      const columns = Math.floor(usableWidth / layout.cellWidth);
+      const rows = Math.floor(usableHeight / layout.cellHeight);
+      setCalculatedCells(rows * columns);
     }
-  }, [pageSizeIndex, layoutIndex, allPageSizes, allLayouts]);
+  }, [allPageSizes, allLayouts, pageSize, layout]);
 
   const handleApply = () => {
     onApplySettings({
-      pageSizeIndex,
-      layoutIndex,
+      pageSize,
+      layout,
       spaceOptimization,
       selectedUnit,
     });
     onClose();
-
-    // Save preferences to localStorage
-    localStorage.setItem(
-      "collagePreferences",
-      JSON.stringify({
-        pageSizeIndex,
-        layoutIndex,
-        spaceOptimization,
-        selectedUnit,
-      })
-    );
   };
 
   const handleCreateCustomPageSize = () => {
@@ -136,42 +98,42 @@ export function InitialSetupModal({
   const handleSaveCustomPreset = (data: PageSizeData | LayoutData) => {
     if (customDialogType === "pageSize") {
       const pageSizeData = data as PageSizeData;
-      const newCustomPageSize = CustomPresetStorage.saveCustomPageSize({
+      // Use the preset store to add a new custom page size
+      const newCustomPageSize = addCustomPageSize({
         name: pageSizeData.name,
         label: pageSizeData.name,
         width: pageSizeData.width,
         height: pageSizeData.height,
         margin: pageSizeData.margin,
       });
-      setCustomPageSizes((prev) => [...prev, newCustomPageSize]);
       // Select the newly created page size
-      setPageSizeIndex(allPageSizes.length);
+      setPageSize(newCustomPageSize);
     } else {
       const layoutData = data as LayoutData;
-      const newCustomLayout = CustomPresetStorage.saveCustomLayout({
+      // Use the preset store to add a new custom layout
+      const newCustomLayout = addCustomLayout({
         name: layoutData.name,
         label: layoutData.name,
         cellWidth: layoutData.cellWidth,
         cellHeight: layoutData.cellHeight,
       });
-      setCustomLayouts((prev) => [...prev, newCustomLayout]);
       // Select the newly created layout
-      setLayoutIndex(allLayouts.length);
+      setLayout(newCustomLayout);
     }
     setCustomDialogOpen(false);
   };
 
   const formatDimension = (value: number): string => {
-    if (selectedUnit === "in") {
-      return `${UnitConverter.mmToInches(value).toFixed(2)}″`;
-    } else if (selectedUnit === "cm") {
-      return `${UnitConverter.mmToCm(value).toFixed(1)}cm`;
-    }
-    return `${value}mm`;
+    return UnitConverter.formatDimension(value, selectedUnit, 2);
   };
 
   return (
-    <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-center text-xl">
@@ -205,8 +167,8 @@ export function InitialSetupModal({
             <Label htmlFor="pageSize">Page Size</Label>
             <PresetSelector
               items={allPageSizes}
-              selectedIndex={pageSizeIndex}
-              onSelect={setPageSizeIndex}
+              selected={pageSize}
+              onSelect={updatePageSize}
               onCustomCreate={handleCreateCustomPageSize}
               formatItemLabel={(size) =>
                 `${size.label} (${formatDimension(
@@ -222,8 +184,8 @@ export function InitialSetupModal({
             <Label htmlFor="photoSize">Photo Size</Label>
             <PresetSelector
               items={allLayouts}
-              selectedIndex={layoutIndex}
-              onSelect={setLayoutIndex}
+              selected={layout}
+              onSelect={updateLayout}
               onCustomCreate={handleCreateCustomLayout}
               formatItemLabel={(layout) =>
                 `${layout.label} (${formatDimension(

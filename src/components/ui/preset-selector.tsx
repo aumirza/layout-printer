@@ -15,8 +15,8 @@ interface PresetItem {
 
 interface PresetSelectorProps<T extends PresetItem> {
   items: T[];
-  selectedIndex: number;
-  onSelect: (index: number) => void;
+  selected: T;
+  onSelect: (item: T) => void;
   onCustomCreate: () => void;
   formatItemLabel: (item: T) => string;
   placeholder: string;
@@ -26,7 +26,7 @@ interface PresetSelectorProps<T extends PresetItem> {
 
 export function PresetSelector<T extends PresetItem>({
   items,
-  selectedIndex,
+  selected,
   onSelect,
   onCustomCreate,
   formatItemLabel,
@@ -38,25 +38,18 @@ export function PresetSelector<T extends PresetItem>({
     if (value === "custom") {
       onCustomCreate();
     } else {
-      const index = parseInt(value, 10);
-      onSelect(index);
+      onSelect(items.find((item) => item.id === value));
     }
   };
 
   return (
-    <Select
-      value={selectedIndex >= 0 ? selectedIndex.toString() : ""}
-      onValueChange={handleChange}
-    >
+    <Select value={selected.id} onValueChange={handleChange}>
       <SelectTrigger className={className}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
         {items.map((item, index) => (
-          <SelectItem
-            key={item.id || item.name || index}
-            value={index.toString()}
-          >
+          <SelectItem key={item.id || item.name || index} value={item.id}>
             <span>{formatItemLabel(item)}</span>
           </SelectItem>
         ))}

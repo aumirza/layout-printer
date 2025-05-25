@@ -11,15 +11,12 @@ import { Switch } from "@/components/ui/switch";
 import { UnitConverter } from "@/lib/unit-converter";
 import { PresetSelector } from "@/components/ui/preset-selector";
 import { CustomPresetDialog } from "@/components/ui/custom-preset-dialog";
-import {
-  CustomPresetStorage,
-  CustomLayoutPreset,
-} from "@/lib/custom-preset-storage";
+import { usePresetStore } from "@/stores/preset-store";
 
 interface LayoutSelectorProps {
   layouts: LayoutPreset[];
   selectedLayout: LayoutPreset;
-  onSelect: (index: number) => void;
+  onSelect: (layout: LayoutPreset) => void;
   onCustomLayout: (cellWidth: number, cellHeight: number) => void;
   selectedUnit: MeasurementUnit;
   spaceOptimization: SpaceOptimization;
@@ -38,25 +35,14 @@ export function LayoutSelector({
   cellCount,
 }: LayoutSelectorProps) {
   const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
-  const [allLayouts, setAllLayouts] = useState<
-    (LayoutPreset | CustomLayoutPreset)[]
-  >([]);
+  const getAllLayouts = usePresetStore((state) => state.getAllLayouts);
+  const addCustomLayout = usePresetStore((state) => state.addCustomLayout);
+  const [allLayouts, setAllLayouts] = useState<LayoutPreset[]>([]);
 
-  // Load all layouts (default + custom) on component mount
+  // Load all layouts from store
   useEffect(() => {
-    const loadAllLayouts = () => {
-      const customLayouts = CustomPresetStorage.getCustomLayouts();
-      setAllLayouts([...layouts, ...customLayouts]);
-    };
-
-    loadAllLayouts();
-
-    // Listen for storage changes to update custom presets
-    const handleStorageChange = () => loadAllLayouts();
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, [layouts]);
+    setAllLayouts(getAllLayouts());
+  }, [getAllLayouts]);
 
   // Format dimensions according to selected unit
   const formatDimension = (value: number): string => {
@@ -74,7 +60,7 @@ export function LayoutSelector({
 
     // Save as preset if requested
     if (data.saveAsPreset) {
-      const customLayout = CustomPresetStorage.saveCustomLayout({
+      addCustomLayout({
         name: data.name,
         cellWidth: data.cellWidth,
         cellHeight: data.cellHeight,
@@ -82,8 +68,7 @@ export function LayoutSelector({
       });
 
       // Refresh the list
-      const customLayouts = CustomPresetStorage.getCustomLayouts();
-      setAllLayouts([...layouts, ...customLayouts]);
+      setAllLayouts(getAllLayouts());
     }
   };
 
@@ -93,9 +78,7 @@ export function LayoutSelector({
 
       <PresetSelector
         items={allLayouts}
-        selectedIndex={allLayouts.findIndex(
-          (layout) => layout.id === selectedLayout.id
-        )}
+        selected={selectedLayout}
         onSelect={onSelect}
         onCustomCreate={() => setIsCustomDialogOpen(true)}
         formatItemLabel={(layout) =>

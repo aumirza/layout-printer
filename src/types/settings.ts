@@ -1,8 +1,13 @@
-import { MeasurementUnit, SpaceOptimization } from "./collage";
+import {
+  LayoutPreset,
+  MeasurementUnit,
+  PageSize,
+  SpaceOptimization,
+} from "./collage";
 
 export interface Settings {
-  pageSizeIndex: number;
-  layoutIndex: number;
+  pageSize: PageSize;
+  layout: LayoutPreset;
   spaceOptimization: SpaceOptimization;
   selectedUnit: MeasurementUnit;
 }
