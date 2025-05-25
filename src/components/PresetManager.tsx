@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -239,7 +239,7 @@ export function PresetManager({ type }: PresetManagerProps) {
     })
   );
 
-  const presets = usePresetStore((state) => state.getPresets(type));
+  const presets = usePresetStore((state) => state.getPresets)(type);
   const savePresetSettings = usePresetStore(
     (state) => state.savePresetSettings
   );
