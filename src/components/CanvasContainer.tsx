@@ -27,7 +27,11 @@ export function CanvasContainer({ collageRef }: CanvasContainerProps) {
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onWheel={(e) => handleWheel(e.nativeEvent)}
+      onWheel={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleWheel(e.nativeEvent);
+      }}
       onContextMenu={(e) => e.preventDefault()} // Prevent context menu on right click
     >
       <div
