@@ -3,13 +3,13 @@ import { PageSizeSelector } from "./PageSizeSelector";
 import { LayoutSelector } from "./LayoutSelector";
 import { ImageUploader } from "./ImageUploader";
 import { ExportPanel } from "./ExportPanel";
-import { useCollage } from "@/context/CollageContext";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "./ui/accordion";
+import { UnitSelector } from "./UnitSelector";
 
 interface CollageSidebarProps {
   collageRef: RefObject<HTMLDivElement>;
@@ -18,6 +18,7 @@ interface CollageSidebarProps {
 export function CollageSidebar({ collageRef }: CollageSidebarProps) {
   return (
     <div className="w-full lg:w-1/4 p-4 overflow-y-auto border-r">
+      <UnitSelector />
       <div className="space-y-6 pb-6">
         <Accordion type="single" collapsible defaultValue="page-size">
           <AccordionItem value="page-size">

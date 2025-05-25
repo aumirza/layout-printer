@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { MeasurementUnit, PageSize } from "@/types/collage";
-import { Button } from "@/components/ui/button";
+import { PageSize } from "@/types/collage";
 import { UnitConverter } from "@/lib/unit-converter";
 import { PresetSelector } from "@/components/ui/preset-selector";
 import {
@@ -17,7 +16,6 @@ export function PageSizeSelector() {
     collageState,
     updatePageSize,
     createCustomPageSize: onCustomSize,
-    setUnit,
   } = useCollage();
 
   const { pageSize: selectedPageSize, selectedUnit } = collageState;
@@ -34,10 +32,6 @@ export function PageSizeSelector() {
   // Format dimensions according to selected unit
   const formatDimension = (value: number): string => {
     return UnitConverter.formatDimension(value, selectedUnit, 1);
-  };
-
-  const handleUnitChange = (unit: MeasurementUnit) => {
-    setUnit(unit);
   };
 
   const handleCustomPresetSave = (data: PageSizeData) => {
@@ -62,45 +56,6 @@ export function PageSizeSelector() {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium">Page Size</h2>
-        <div className="flex items-center space-x-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "px-2 h-8 text-xs",
-              selectedUnit === "mm" && "bg-muted"
-            )}
-            onClick={() => handleUnitChange("mm")}
-          >
-            mm
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "px-2 h-8 text-xs",
-              selectedUnit === "cm" && "bg-muted"
-            )}
-            onClick={() => handleUnitChange("cm")}
-          >
-            cm
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "px-2 h-8 text-xs",
-              selectedUnit === "in" && "bg-muted"
-            )}
-            onClick={() => handleUnitChange("in")}
-          >
-            in
-          </Button>
-        </div>
-      </div>
-
       <PresetSelector
         items={allPageSizes}
         selected={selectedPageSize}
