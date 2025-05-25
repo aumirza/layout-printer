@@ -10,6 +10,14 @@ import {
   AccordionTrigger,
 } from "./ui/accordion";
 import { UnitSelector } from "./UnitSelector";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+} from "./ui/sidebar";
+import { Link } from "react-router-dom";
 
 interface CollageSidebarProps {
   collageRef: RefObject<HTMLDivElement>;
@@ -17,47 +25,60 @@ interface CollageSidebarProps {
 
 export function CollageSidebar({ collageRef }: CollageSidebarProps) {
   return (
-    <div className="w-full lg:w-1/4 p-4 overflow-y-auto border-r">
-      <UnitSelector />
-      <div className="space-y-6 pb-6">
-        <Accordion type="single" collapsible defaultValue="page-size">
-          <AccordionItem value="page-size">
-            <AccordionTrigger className="text-lg font-semibold">
-              Page Size
-            </AccordionTrigger>
-            <AccordionContent>
-              <PageSizeSelector />
-            </AccordionContent>
-          </AccordionItem>
+    <Sidebar>
+      <SidebarHeader>
+        <Link
+          to="/"
+          className="font-semibold text-lg hover:text-primary transition-colors"
+        >
+          Photo Collage Maker
+        </Link>
+        <UnitSelector />
+      </SidebarHeader>
 
-          <AccordionItem value="photo-size">
-            <AccordionTrigger className="text-lg font-semibold">
-              Photo Size
-            </AccordionTrigger>
-            <AccordionContent>
-              <LayoutSelector />
-            </AccordionContent>
-          </AccordionItem>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <Accordion type="single" collapsible defaultValue="page-size">
+              <AccordionItem value="page-size">
+                <AccordionTrigger className="text-lg font-semibold">
+                  Page Size
+                </AccordionTrigger>
+                <AccordionContent>
+                  <PageSizeSelector />
+                </AccordionContent>
+              </AccordionItem>
 
-          <AccordionItem value="photos">
-            <AccordionTrigger className="text-lg font-semibold">
-              Photos
-            </AccordionTrigger>
-            <AccordionContent>
-              <ImageUploader />
-            </AccordionContent>
-          </AccordionItem>
+              <AccordionItem value="photo-size">
+                <AccordionTrigger className="text-lg font-semibold">
+                  Photo Size
+                </AccordionTrigger>
+                <AccordionContent>
+                  <LayoutSelector />
+                </AccordionContent>
+              </AccordionItem>
 
-          <AccordionItem value="export">
-            <AccordionTrigger className="text-lg font-semibold">
-              Options & Export
-            </AccordionTrigger>
-            <AccordionContent>
-              <ExportPanel collageRef={collageRef} />
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </div>
-    </div>
+              <AccordionItem value="photos">
+                <AccordionTrigger className="text-lg font-semibold">
+                  Photos
+                </AccordionTrigger>
+                <AccordionContent>
+                  <ImageUploader />
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="export">
+                <AccordionTrigger className="text-lg font-semibold">
+                  Options & Export
+                </AccordionTrigger>
+                <AccordionContent>
+                  <ExportPanel collageRef={collageRef} />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
   );
 }
