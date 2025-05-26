@@ -31,7 +31,7 @@ export function CollageSidebar({ collageRef }: CollageSidebarProps) {
           to="/"
           className="font-semibold text-lg hover:text-primary transition-colors"
         >
-          Photo Collage Maker
+          LayoutCrafter
         </Link>
         <UnitSelector />
       </SidebarHeader>
