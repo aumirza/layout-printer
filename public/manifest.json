@@ -1,0 +1,50 @@
+{
+  "name": "Layout Crafter",
+  "short_name": "LayoutCrafter",
+  "description": "Easily arrange and print multiple images or designs on a single page with automatic cutting markers.",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "icons/android_chrome_192X192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/android_chrome_512X512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/apple_touch_icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/favicon_16X16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/favicon_32X32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/favicon_96X96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/mstile_150X150.png",
+      "sizes": "150x150",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/safari_pinned_tab.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
